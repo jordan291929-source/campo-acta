@@ -37,7 +37,7 @@ No sumar unidades diferentes. La unidad/contenido de un producto con saldos no s
 - El kardex nuevo contiene saldos cero explícitos donde el archivo anterior tenía errores. Revisar antes de cargar.
 - Los productores sin documento se pueden guardar; completarlo antes de emitir un acta. Nombres parecidos o alias deben revisarse; no se fusionan por suposición.
 - Los códigos internos del kardex (por ejemplo 2923-1) se conservan en las notas de origen y **no se consideran códigos NISIRA**.
-- Los precios del acta se expresan por unidad de control, en la moneda indicada. No se convierten monedas automáticamente; cambiar moneda reinicia precios.
+- El precio de cada salida no se edita: se toma del catálogo de Productos (precio por envase) y, en soles, se convierte con el tipo de cambio referencial. Para cambiarlo, editar el producto. Al emitir, el precio queda fijado en el acta.
 - Una nueva salida anterior a la fecha de corte se rechaza: usar histórica cuando ya esté descontada.
 
 ## Acceso y consistencia
