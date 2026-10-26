@@ -25,6 +25,10 @@ export function actaDetails(details:Details,defaults:Details,producer:Producer|u
  if(!details.initial_debt||details.initial_debt_mode==='auto'){result.initial_debt=money(total,currency);result.initial_debt_mode='auto';}
  return result;
 }
+// El ingeniero firma esta entrega; no hereda el DNI ni el cargo del representante general.
+export function engineerActaDetails(details:Details,defaults:Details,producer:Producer|undefined,total:number,currency:string):Details{
+ return {...actaDetails(details,defaults,producer,total,currency),representative_name:details.responsible?.trim()||'',representative_document:details.representative_document??'',authority:details.authority??'Ingeniero de Campo'};
+}
 export function dateInput(value=''){
  if(/^\d{4}-\d{2}-\d{2}$/.test(value))return value;
  const m=value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:'';

@@ -3,7 +3,7 @@ import {createPortal} from 'react-dom';
 import {db,lines,rpc} from './api';
 import {Acta} from './Acta';
 import {ActaFields} from './ActaFields';
-import {actaDetails,DEFAULT_COMPANY,engineerList,findEngineer} from './company';
+import {actaDetails,engineerActaDetails,DEFAULT_COMPANY,engineerList,findEngineer} from './company';
 import type {HistoryGroup} from './excel';
 import type {Details,Line,Operation,Producer,Product,Stock,Warehouse} from './model';
 import {code,kinds,money,normalized,states,today,packageContent,packageCount,packageLabel} from './model';
@@ -39,7 +39,7 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
  const total=priced.reduce((s,l)=>s+Math.round((l.quantity*l.price+Number.EPSILON)*100)/100,0);
  const selectedProducer=readonly?op.producer_snapshot:producers.find(p=>p.id===op.producer_id);
  const engineers=engineerList(companyDefaults);const selectedEngineer=findEngineer(op.details.responsible??'',engineers);
- const resolvedDetails=readonly?op.details:{...actaDetails(op.details,companyDefaults,selectedProducer,total,op.currency),responsible:selectedEngineer||op.details.responsible||''};
+ const resolvedDetails=readonly?op.details:{...(isProducer?engineerActaDetails:actaDetails)({...op.details,responsible:selectedEngineer||op.details.responsible||''},companyDefaults,selectedProducer,total,op.currency),responsible:selectedEngineer||op.details.responsible||''};
  function setRate(value:string,date:string,source:string){setOp(o=>({...o,details:{...o.details,exchange_rate:value,exchange_rate_date:date,exchange_rate_source:source,reviewed:''}}));}
  // Documento en soles sin tipo de cambio: propone el de hoy.
  useEffect(()=>{if(readonly||op.currency!=='PEN'||op.details.exchange_rate)return;let live=true;fetchUsdPen().then(x=>{if(live)setRate(String(x.rate),x.date,x.source);}).catch(()=>{});return()=>{live=false;};},[op.id,op.currency,readonly]);
@@ -68,7 +68,7 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
   isProducer&&op.details.reviewed!=='yes'&&'Marcar la casilla de revisión (paso 5).',
  ].filter((x):x is string=>!!x);
  // Datos comunes de FRUGLOBE que el acta de productor imprimiría en blanco.
- const companyGaps=isProducer?([['representative_document','DNI del representante'],['authority','cargo y sustento de facultades'],['bank','banco y titular'],['account','cuenta o CCI']] as const).filter(([k])=>!resolvedDetails[k]).map(([,label])=>label):[];
+ const companyGaps=isProducer?([['bank','banco y titular'],['account','cuenta o CCI']] as const).filter(([k])=>!resolvedDetails[k]).map(([,label])=>label):[];
  const setQuantity=(i:number,quantity:number)=>setItems(items.map((x,j)=>i===j?{...x,quantity}:x));
  const destinationLabel=op.kind==='purchase'?'Proveedor y comprobante':'Fundo o destino del uso';
  const rateField=<label>Tipo de cambio (S/ por 1 USD)<input type="number" step="0.001" min="0.001" placeholder="Ej.: 3.380" value={op.details.exchange_rate??''} onChange={e=>setRate(e.target.value,today(),'manual')}/><small>{op.details.exchange_rate_date?`Consultado el ${op.details.exchange_rate_date} · ${op.details.exchange_rate_source==='manual'?'ingresado manualmente':op.details.exchange_rate_source}`:'Sin tipo de cambio'}{!readonly&&<> · <button type="button" className="link" onClick={()=>run(async()=>{const x=await fetchUsdPen();setRate(String(x.rate),x.date,x.source);})}>Usar TC de hoy</button></>}</small></label>;
@@ -94,7 +94,8 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
    {op.kind==='transfer'&&<label>Almacén de destino<select value={op.destination_id??''} onChange={e=>setOp({...op,destination_id:e.target.value||null})}><option value="">Elige el destino</option>{warehouses.filter(w=>w.id!==op.warehouse_id).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>}
    {!isProducer&&op.kind!=='transfer'&&<label>{destinationLabel}<input value={op.details.destination??''} onChange={e=>details('destination',e.target.value)}/></label>}
    <label>Fecha de {op.kind==='purchase'?'ingreso':'entrega'}<input type="date" max={today()} required value={op.occurred_on} onChange={e=>setOp({...op,occurred_on:e.target.value})}/></label>
-   {warehouseStaff?<label>{op.kind==='transfer'?'Responsable de almacén que entrega':'Responsable de almacén que recibe'}<input list="warehouse-staff" placeholder="Nombre y apellido" value={op.details.responsible??''} onChange={e=>details('responsible',e.target.value)}/><datalist id="warehouse-staff">{staffNames.map(n=><option key={n} value={n}/>)}</datalist></label>:<label>Ingeniero que entrega<select value={selectedEngineer??op.details.responsible??''} onChange={e=>details('responsible',e.target.value)}><option value="">{engineers.length?'Elige el ingeniero':'Configura el listado en Datos de empresa'}</option>{!selectedEngineer&&op.details.responsible&&<option value={op.details.responsible} disabled>{readonly?'Responsable guardado: ':'Valor anterior: '}{op.details.responsible}</option>}{engineers.map(engineer=><option key={engineer} value={engineer}>{engineer}</option>)}</select></label>}
+   {warehouseStaff?<label>{op.kind==='transfer'?'Responsable de almacén que entrega':'Responsable de almacén que recibe'}<input list="warehouse-staff" placeholder="Nombre y apellido" value={op.details.responsible??''} onChange={e=>setOp({...op,details:{...op.details,responsible:e.target.value,representative_name:e.target.value,representative_document:'',reviewed:''}})}/><datalist id="warehouse-staff">{staffNames.map(n=><option key={n} value={n}/>)}</datalist></label>:<label>Ingeniero que entrega<select value={selectedEngineer??op.details.responsible??''} onChange={e=>setOp({...op,details:{...op.details,responsible:e.target.value,representative_name:e.target.value,representative_document:'',reviewed:''}})}><option value="">{engineers.length?'Elige el ingeniero':'Configura el listado en Datos de empresa'}</option>{!selectedEngineer&&op.details.responsible&&<option value={op.details.responsible} disabled>{readonly?'Responsable guardado: ':'Valor anterior: '}{op.details.responsible}</option>}{engineers.map(engineer=><option key={engineer} value={engineer}>{engineer}</option>)}</select></label>}
+   {isProducer&&<><label>DNI / CE del ingeniero<input value={resolvedDetails.representative_document??''} placeholder="Documento de quien entrega" onChange={e=>setOp({...op,details:{...op.details,representative_document:e.target.value,reviewed:''}})}/><small>Se imprime junto al representante y en su firma.</small></label><label>Cargo en esta acta<input value={resolvedDetails.authority??''} onChange={e=>setOp({...op,details:{...op.details,authority:e.target.value,reviewed:''}})}/><small>Solo para esta acta. No cambia los datos de empresa.</small></label></>}
    {isProducer&&<label>Lugar de entrega<input placeholder="Ej.: Fundo, almacén o caserío" value={op.details.place??''} onChange={e=>details('place',e.target.value)}/></label>}
   </div>
  </section>
