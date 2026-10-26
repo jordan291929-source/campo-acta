@@ -34,7 +34,7 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
  // Documento en soles sin tipo de cambio: propone el de hoy.
  useEffect(()=>{if(readonly||op.currency!=='PEN'||op.details.exchange_rate)return;let live=true;fetchUsdPen().then(x=>{if(live)setRate(String(x.rate),x.date,x.source);}).catch(()=>{});return()=>{live=false;};},[op.id,op.currency,readonly]);
  function details(k:string,v:string){setOp({...op,details:{...op.details,[k]:v}});}
- async function open(id:string){const {data,error}=await db().from('field_operations').select('*').eq('id',id).single();if(error)throw new Error(error.message);setOp(data);setNisira(data.nisira_reference??'');setItems(await lines(id));setPreview(false);}
+ async function open(id:string){const {data,error}=await db().from('field_operations').select('*').eq('id',id).single();if(error)throw new Error(error.message);setOp(data.status==='draft'&&data.currency!=='PEN'?{...data,currency:'PEN'}:data);setNisira(data.nisira_reference??'');setItems(await lines(id));setPreview(false);}
  async function save(){await rpc('field_save_operation',{p:{...op,details:resolvedDetails},p_lines:priced.map(l=>({product_id:l.product_id,quantity:l.quantity,price:l.price})),p_version:op.version??null});await open(op.id);}
  const printOp={...op,details:{...resolvedDetails,company_ruc:resolvedDetails.company_ruc||companyDefaults.company_ruc||''},total:readonly?Number(op.total??total):total,producer_snapshot:readonly?op.producer_snapshot:producers.find(p=>p.id===op.producer_id)};
  const consumes=['delivery','own_consumption','transfer'].includes(op.kind);
@@ -97,17 +97,18 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
     </div>}
    </div>;})}
   {!readonly&&<button type="button" className="quiet add-line" onClick={()=>setItems([...items,{product_id:'',quantity:1,price:0}])}>+ Agregar insumo</button>}
-  {needsRate&&<div className="alert">No se pudo obtener el tipo de cambio. Escríbelo para calcular los precios en soles.{rateField}</div>}
+  <div className="form-grid money-row">
+   <label>Moneda del acta<select value={op.currency} onChange={e=>setOp({...op,currency:e.target.value,details:{...op.details,reviewed:''}})}><option value="PEN">Soles (S/)</option><option value="USD">Dólares (USD)</option></select></label>
+   {op.currency==='PEN'&&rateField}
+  </div>
+  {needsRate&&<p className="alert">No se pudo obtener el tipo de cambio. Escríbelo para calcular los precios en soles.</p>}
   <p className="total">Total: {money(total,op.currency)}</p>
-  {op.currency==='PEN'&&rate>0&&<p className="field-help right">Convertido a soles con TC referencial S/ {op.details.exchange_rate} por USD.</p>}
  </section>
  <section className="step"><h3><span className="step-number">4</span>{isProducer?'¿Quién recibe y cómo se descuenta?':'¿Quién recibe?'}</h3>
   <ActaFields d={resolvedDetails} producer={selectedProducer} isProducer={isProducer} parts={['recipient','discount']} onChange={patch=>setOp({...op,details:{...op.details,...patch,reviewed:''}})}/>
  </section>
- <details className="step more"><summary>Más datos (opcional): moneda, campaña, guía y datos de FRUGLOBE</summary>
+ <details className="step more"><summary>Más datos (opcional): campaña, guía y datos de FRUGLOBE</summary>
   <div className="form-grid">
-   <label>Moneda del acta<select value={op.currency} onChange={e=>setOp({...op,currency:e.target.value,details:{...op.details,reviewed:''}})}><option value="PEN">Soles (S/)</option><option value="USD">Dólares (USD)</option></select></label>
-   {op.currency==='PEN'&&rateField}
    <label>Campaña<input value={op.details.campaign??''} onChange={e=>details('campaign',e.target.value)}/></label>
    <label>Referencia de origen / guía<input value={op.details.source??''} onChange={e=>details('source',e.target.value)}/></label>
   </div>

@@ -11,3 +11,4 @@ button.link{background:none;color:#214f3d;padding:0;min-height:0;width:auto;marg
 @media(max-width:700px){.line-grid{grid-template-columns:1fr 1fr}.choices{grid-template-columns:1fr}.review-summary strong{margin-left:0}}
 @media print{.step-actions{position:static}}
 .step-actions button{margin:0}@media(max-width:700px){.step-actions button{padding:10px 8px;font-size:13px;min-height:42px}}
+.money-row{background:#f1f5ed;border-radius:10px;padding:0 18px;margin-top:14px}.money-row label{margin:14px 0}
