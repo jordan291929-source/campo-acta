@@ -82,3 +82,8 @@ Productos también permite cargar un archivo privado de precios sin IGV +15% y a
 Aplicar la migración 202610260003_catalog_permissions.sql después de 002. Registrar el correo de la cuenta restringida en field_account_restrictions con can_manage_catalog=false desde SQL Editor. La regla se vincula al usuario existente o al momento de crear su cuenta. Permite operar productores, salidas, firmas, movimientos y NISIRA; restringe importación inicial, saldos iniciales y creación/edición de productos y precios. Las restricciones se validan en el servidor, y las implementaciones internas no están disponibles para llamadas de clientes. La cuenta principal conserva permisos de catálogo.
 
 La interfaz consulta su permiso al actualizar o iniciar sesión. Si aún no se instaló esta migración, mantiene cerradas temporalmente las funciones de catálogo. Nunca volver a aplicar una migración antigua sobre una más reciente.
+
+## Acta de llenado simple y datos de empresa
+El formulario separa receptor, descuento y datos comunes de FRUGLOBE. Al elegir productor se completan nombre, documento y predio; se puede indicar un receptor diferente. El importe a descontar se calcula desde los insumos, conservando importes manuales de documentos previos. Las fechas se seleccionan y no se inventan.
+
+El RUC y el domicilio se guardan en Supabase y se completan para usuarios autenticados. No se incluyen en el código del frontend. Para configurar la identidad fiscal, representante, DNI y datos bancarios compartidos, aplicar 202610260004_company_defaults.sql y completar Datos de empresa con la cuenta principal. Campo consulta esos datos sin reescribirlos. Los borradores reciben datos por defecto donde faltan; las actas emitidas conservan sus datos guardados.

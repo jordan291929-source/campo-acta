@@ -78,7 +78,17 @@ try{
  assert.equal((await db.query("select user_id from public.field_account_restrictions where email='general@example.test'")).rows[0].user_id,future);
  await db.exec(`update auth.users set email='changed@example.test' where id='${future}';set role authenticated;select set_config('request.jwt.claim.sub','${future}',false)`);
  assert.equal(await rpc('field_can_manage_catalog',[]),false,'Cambiar correo no elimina la restricción de la cuenta');
+ await db.exec('reset role');
+ const companySql=await readFile(new URL('../supabase/migrations/202610260004_company_defaults.sql',import.meta.url),'utf8');await db.exec(companySql);await db.exec(companySql);
+ await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${uid}',false)`);
+ const originalDefaults=await rpc('field_company_defaults',[]);assert.equal(originalDefaults.company_address,undefined);
+ await rpc('field_save_company_defaults',[{company_ruc:'00000000000',company_address:'Dirección de prueba',representative_name:'Representante de prueba',account:'Cuenta de prueba',unrecognized:'No debe guardarse'}]);
+ const companyDefaults=await rpc('field_company_defaults',[]);assert.equal(companyDefaults.representative_name,'Representante de prueba');assert.equal(companyDefaults.unrecognized,undefined);
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid2}',false)`);assert.equal((await rpc('field_company_defaults',[])).account,'Cuenta de prueba');
+ await assert.rejects(rpc('field_save_company_defaults',[{company_address:'Cambio no permitido'}]),/no puede editar datos de empresa/);
+ await assert.rejects(db.exec("update public.field_company_settings set details='{}'"),/permission denied/);
  await db.exec('reset role;set role anon');await assert.rejects(db.query('select * from public.producers'),/permission denied/);
  console.log('OK: registro automático, acceso compartido, histórica sin descuento, salida atómica/idempotente, rechazo de insuficiencia y fecha, traslado, consumo, reversos, edición concurrente, firmas, snapshot y permisos.');
  console.log('OK: Campo opera salidas y productores; bloqueo real de productos/precios, carga y saldos iniciales; administrador conserva acceso; restricción previa al alta y persistente por usuario.');
+ console.log('OK: datos comunes compartidos; Campo los consulta y administración los configura.');
 }finally{await db.close();}

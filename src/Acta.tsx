@@ -4,13 +4,13 @@ const blank='________________________________';
 export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses:Warehouse[]}){
  const d=op.details,p=op.producer_snapshot,producer=op.kind==='delivery'||op.kind==='historical';
  const value=(s?:string)=>s||blank;
- return <article className="acta"><div className="acta-heading"><b>FRUGLOBE S.A.C.</b><span>RUC 20603062397</span></div>
+ return <article className="acta"><div className="acta-heading"><b>FRUGLOBE S.A.C.</b><span>RUC {value(d.company_ruc)}</span></div>
  <h1>{producer?'Acta de entrega y recepción de insumos agrícolas':kinds[op.kind]}</h1>
  <p><b>{code(op.number)}</b> · {op.status==='draft'?'BORRADOR · SIN FIRMA':op.status==='cancelled'?'ANULADA':'DOCUMENTO EMITIDO'}<br/>Lugar: {value(d.place)} · Fecha de entrega física: {op.occurred_on}<br/>Fecha de emisión: {op.issued_at?new Date(op.issued_at).toLocaleDateString('es-PE',{timeZone:'America/Lima'}):'Pendiente'}{op.kind==='historical'&&<><br/><b>Regularización documental de una entrega anterior. No genera una nueva salida de stock.</b></>}</p>
  {op.status==='cancelled'&&<p><b>Motivo de anulación: {op.cancellation_reason}</b></p>}
  {producer&&<p>Las partes identificadas a continuación dejan constancia de los insumos entregados por FRUGLOBE S.A.C. al productor, de su valor y de las condiciones acordadas para su pago. Completar todos los campos aplicables y anular los espacios no utilizados.</p>}
  <h2>1. Identificación de las partes y destino</h2>
- <p>Empresa: FRUGLOBE S.A.C. · RUC: 20603062397<br/>Domicilio: {value(d.company_address)}<br/>Representante: {value(d.responsible)} · DNI/CE: {value(d.representative_document)}<br/>Cargo y sustento de facultades: {value(d.authority)}</p>
+ <p>Empresa: FRUGLOBE S.A.C. · RUC: {value(d.company_ruc)}<br/>Domicilio: {value(d.company_address)}<br/>Representante: {value(d.representative_name||d.responsible)} · DNI/CE: {value(d.representative_document)}<br/>Cargo y sustento de facultades: {value(d.authority)}</p>
  {producer?<p>Productor o razón social: {value(p?.name)}<br/>DNI/CE: {value(p?.document?.length===11?'':p?.document)} · RUC: {value(p?.details?.ruc||(p?.document?.length===11?p.document:''))}<br/>Domicilio: {value(p?.details?.address)}<br/>Teléfono: {value(p?.details?.phone)} · Correo: {value(p?.details?.email)}<br/>Predio y código: {value(p?.predio)} · Campaña: {value(d.campaign)}<br/>Ubicación del predio: {value(p?.details?.location)}<br/>Lugar de entrega: {value(d.place)} · Contrato vinculado N.º: {value(d.contract)}</p>:<p>Destino / fundo / proveedor: {value(d.destination)}<br/>Responsable que recibe: {value(d.receiver)}<br/>Campaña: {value(d.campaign)}</p>}
  <p>Ubicación de {op.kind==='purchase'?'ingreso':'origen'}: {warehouses.find(w=>w.id===op.warehouse_id)?.name}{op.kind==='transfer'&&<><br/>Ubicación de destino: {warehouses.find(w=>w.id===op.destination_id)?.name}</>}</p>
  <h2>2. Insumos entregados y valorización</h2>
@@ -32,6 +32,6 @@ export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses
  <p>Esta acta no pacta intereses, penalidades ni gastos adicionales. Cualquier modificación del plazo o acuerdo adicional deberá constar por escrito, firmado por ambas partes y sujeto a los límites legales aplicables.</p></>}
  {!producer&&<p>Movimiento interno. Este documento no genera una obligación de pago de un productor.</p>}
  <p>Leída el acta y completados sus campos, las partes aceptan lo consignado y firman dos ejemplares de igual contenido. Toda corrección debe quedar salvada con las iniciales de ambas partes.</p>
- <div className="signatures"><div><b>Por FRUGLOBE S.A.C.</b><p>Firma: {blank}<br/>Nombre: {value(d.responsible)}<br/>DNI/CE: {value(d.representative_document)}</p></div><div><b>{producer?'Productor o representante acreditado':'Responsable que recibe'}</b><p>Firma: {blank}<br/>Nombre: {value(d.receiver||p?.name)}<br/>DNI/CE: {value(d.receiver_document||p?.document)}</p></div></div>
+ <div className="signatures"><div><b>Por FRUGLOBE S.A.C.</b><p>Firma: {blank}<br/>Nombre: {value(d.representative_name||d.responsible)}<br/>DNI/CE: {value(d.representative_document)}</p></div><div><b>{producer?'Productor o representante acreditado':'Responsable que recibe'}</b><p>Firma: {blank}<br/>Nombre: {value(d.receiver||p?.name)}<br/>DNI/CE: {value(d.receiver_document||p?.document)}</p></div></div>
  </article>;
 }
