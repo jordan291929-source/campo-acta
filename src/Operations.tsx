@@ -16,6 +16,15 @@ const kindChoices:[string,string,string][]=[
  ['purchase','Ingreso de compra','Suma stock al almacén'],
  ['historical','Regularizar entrega antigua','Solo genera el acta, no descuenta stock'],
 ];
+// Íconos simples (trazo) para reconocer cada tipo de documento a simple vista.
+const kindIcons:Record<string,string>={
+ delivery:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M17 11l2 2 4-4',
+ own_consumption:'M7 20h10M12 20V10M12 10c0-4 3-6 7-6 0 4-3 6-7 6M12 13c0-3-2-5-6-5 0 3 2 5 6 5',
+ transfer:'M7 7h13l-4-4M17 17H4l4 4',
+ purchase:'M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8',
+ historical:'M12 8v4l3 2M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
+};
+const KindIcon=({kind}:{kind:string})=><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={kindIcons[kind]}/></svg>;
 export function Operations({rows,products,producers,warehouses,stock,run,name,seed,active=true,companyDefaults=DEFAULT_COMPANY,canManage=false}:{rows:Operation[];products:Product[];producers:Producer[];warehouses:Warehouse[];stock:Stock[];run:Run;name:string;seed?:HistoryGroup;active?:boolean;companyDefaults?:Details;canManage?:boolean}){
  const fresh=(kind='delivery'):Operation=>({id:crypto.randomUUID(),kind,status:'draft',warehouse_id:warehouses.find(w=>w.code==='SUR')?.id??'',destination_id:null,producer_id:null,occurred_on:today(),currency:'PEN',details:{responsible:''}});
  const fromHistory=()=>({...fresh(seed!.stockAlreadyDiscounted===false?'delivery':'historical'),occurred_on:seed!.date,warehouse_id:warehouses.find(w=>w.code===seed!.warehouse)?.id??'',details:{responsible:seed!.responsible||'',source:seed!.key,import_key:seed!.key,notes:seed!.description}});
@@ -67,13 +76,12 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
  <section className="card"><div className="section-title"><h3>{op.number?code(op.number):'Nuevo documento'} <span className="pill">{states[op.status]}</span></h3>{op.kind==='historical'&&<span className="pill">No descuenta stock</span>}</div>
  {readonly&&<p className="field-help">Documento {states[op.status].toLowerCase()}: solo lectura. Para corregirlo, anúlalo y registra uno nuevo.</p>}
  <form onSubmit={e=>{e.preventDefault();run(save);}}><fieldset disabled={readonly}>
- <section className="step"><h3><span className="step-number">1</span>¿Qué vas a registrar?</h3>
-  <div className="choices">{kindChoices.filter(([k])=>k!=='historical'||op.kind==='historical').map(([k,title,help])=><button type="button" key={k} className={`choice${op.kind===k?' selected':''}`} aria-pressed={op.kind===k} onClick={()=>setOp({...op,kind:k,destination_id:null,producer_id:null})}><b>{title}</b><span>{help}</span></button>)}</div>
+ <section className="step"><h3><span className="step-number">1</span>¿Qué vas a registrar? <small className="step-hint">Toca una opción</small></h3>
+  <div className="choices">{kindChoices.filter(([k])=>k!=='historical'||op.kind==='historical').map(([k,title,help])=><button type="button" key={k} className={`choice${op.kind===k?' selected':''}`} aria-pressed={op.kind===k} onClick={()=>setOp({...op,kind:k,destination_id:null,producer_id:null})}><span className="choice-icon"><KindIcon kind={k}/></span><span className="choice-text"><b>{title}</b><span>{help}</span></span><span className="choice-radio" aria-hidden="true">{op.kind===k?'✓':''}</span></button>)}</div>
  </section>
  <section className="step"><h3><span className="step-number">2</span>{isProducer?'¿A quién y cuándo?':'¿Dónde y cuándo?'}</h3>
   <div className="form-grid">
-   {isProducer&&<label className="wide">Productor<select value={op.producer_id??''} onChange={e=>setOp({...op,producer_id:e.target.value||null})}><option value="">Elige el productor</option>{producers.map(p=><option key={p.id} value={p.id}>{p.name} · {p.predio||'Sin predio'}</option>)}</select></label>}
-   {isProducer&&selectedProducer&&<div className="recipient-summary wide"><b>{selectedProducer.name}</b><span>DNI / RUC: {selectedProducer.document||<strong className="warn">Falta: complétalo en Productores antes de emitir</strong>}</span><span>Predio: {selectedProducer.predio||'Sin dato'}{selectedProducer.details?.location?` · ${selectedProducer.details.location}`:''}</span></div>}
+   {isProducer&&<label className="span2">Productor<select value={op.producer_id??''} onChange={e=>setOp({...op,producer_id:e.target.value||null})}><option value="">Elige el productor</option>{producers.map(p=><option key={p.id} value={p.id}>{p.name} · {p.predio||'Sin predio'}</option>)}</select>{selectedProducer&&<small>DNI / RUC: {selectedProducer.document||<strong className="warn">falta, complétalo en Productores</strong>} · Predio: {selectedProducer.predio||'sin dato'}{selectedProducer.details?.location?` · ${selectedProducer.details.location}`:''}</small>}</label>}
    <label>{op.kind==='purchase'?'Almacén donde ingresa':'Almacén de salida'}<select required value={op.warehouse_id} onChange={e=>setOp({...op,warehouse_id:e.target.value})}><option value="">Elige el almacén</option>{warehouses.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>
    {op.kind==='transfer'&&<label>Almacén de destino<select value={op.destination_id??''} onChange={e=>setOp({...op,destination_id:e.target.value||null})}><option value="">Elige el destino</option>{warehouses.filter(w=>w.id!==op.warehouse_id).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>}
    {!isProducer&&op.kind!=='transfer'&&<label>{destinationLabel}<input value={op.details.destination??''} onChange={e=>details('destination',e.target.value)}/></label>}
@@ -87,26 +95,34 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
   {seed&&<p className="alert">Revisa las unidades del kardex y asigna los productos que no coincidan.</p>}
   {priced.map((l,i)=>{const p=products.find(p=>p.id===l.product_id),balance=balanceOf(l.product_id),plural=p?packageCount(2,p.presentation,p.unit).replace(/^\S+\s/,''):'envases',short=consumes&&!!p&&balance!==null&&l.quantity>Number(balance);
    return <div className={`line-card${short?' short':''}`} key={i}>
-    <div className="line-head"><b>Insumo {i+1}</b>{!readonly&&<button type="button" className="link" onClick={()=>setItems(items.filter((_,j)=>i!==j))}>Quitar</button>}</div>
-    <label>Producto<select required value={l.product_id} onChange={e=>setItems(items.map((x,j)=>i===j?{...x,product_id:e.target.value}:x))}><option value="">Elige el producto</option>{products.map(p=>{const b=balanceOf(p.id);return <option key={p.id} value={p.id}>{p.name} · {p.presentation}{consumes?` — ${b===null?'sin stock':`${packageCount(b,p.presentation,p.unit)} disponibles`}`:''}</option>;})}</select>{seed&&!l.product_id&&<small>Origen: {seed.items[i]?.name}</small>}</label>
-    {p&&<div className="line-grid">
+    <label className="line-product">Insumo {i+1}<select required value={l.product_id} onChange={e=>setItems(items.map((x,j)=>i===j?{...x,product_id:e.target.value}:x))}><option value="">Elige el producto</option>{products.map(p=>{const b=balanceOf(p.id);return <option key={p.id} value={p.id}>{p.name} · {p.presentation}{consumes?` — ${b===null?'sin stock':`${packageCount(b,p.presentation,p.unit)} disponibles`}`:''}</option>;})}</select>{seed&&!l.product_id&&<small>Origen: {seed.items[i]?.name}</small>}</label>
+    {p?<>
      {consumes&&<div><span className="mini">Disponible</span><b>{balance===null?'Sin saldo':packageCount(balance,p.presentation,p.unit)}</b><small>{packageContent(p.presentation,p.unit,p.package_size)&&`${packageContent(p.presentation,p.unit,p.package_size)} c/u`}</small></div>}
      <div><span className="mini">Cantidad ({plural})</span><div className="stepper"><button type="button" aria-label="Restar uno" onClick={()=>setQuantity(i,Math.max(1,l.quantity-1))}>−</button><input aria-label={`Cantidad ${i+1}`} type="number" inputMode="numeric" step={p.unit==='UN'?'1':'0.0001'} min={p.unit==='UN'?'1':'0.0001'} required value={l.quantity} onChange={e=>setQuantity(i,Number(e.target.value))}/><button type="button" aria-label="Sumar uno" onClick={()=>setQuantity(i,l.quantity+1)}>+</button></div>{short&&<small className="warn">Solo hay {packageCount(balance??0,p.presentation,p.unit)}</small>}</div>
      <div><span className="mini">Precio por {packageLabel(p.presentation,p.unit).toLowerCase()}</span><b>{money(l.price,op.currency)}</b></div>
      <div><span className="mini">Importe</span><b>{money(Math.round((l.quantity*l.price+Number.EPSILON)*100)/100,op.currency)}</b></div>
-    </div>}
+    </>:<span className="line-empty">Elige el producto para ver stock y precio</span>}
+    {!readonly&&<button type="button" className="link line-remove" onClick={()=>setItems(items.filter((_,j)=>i!==j))}>Quitar</button>}
    </div>;})}
   {!readonly&&<button type="button" className="quiet add-line" onClick={()=>setItems([...items,{product_id:'',quantity:1,price:0}])}>+ Agregar insumo</button>}
-  <div className="form-grid money-row">
+  <div className="money-row">
    <label>Moneda del acta<select value={op.currency} onChange={e=>setOp({...op,currency:e.target.value,details:{...op.details,reviewed:''}})}><option value="PEN">Soles (S/)</option><option value="USD">Dólares (USD)</option></select></label>
    {op.currency==='PEN'&&rateField}
+   <p className="total">Total: {money(total,op.currency)}</p>
   </div>
   {needsRate&&<p className="alert">No se pudo obtener el tipo de cambio. Escríbelo para calcular los precios en soles.</p>}
-  <p className="total">Total: {money(total,op.currency)}</p>
  </section>
+ <div className="steps-pair">
  <section className="step"><h3><span className="step-number">4</span>{isProducer?'¿Quién recibe y cómo se descuenta?':'¿Quién recibe?'}</h3>
   <ActaFields d={resolvedDetails} producer={selectedProducer} isProducer={isProducer} parts={['recipient','discount']} onChange={patch=>setOp({...op,details:{...op.details,...patch,reviewed:''}})}/>
  </section>
+ <section className="step"><h3><span className="step-number">5</span>Revisar y {op.kind==='purchase'?'confirmar':'emitir'}</h3>
+  <label>Observaciones<textarea placeholder="Opcional" value={op.details.notes??''} onChange={e=>details('notes',e.target.value)}/></label>
+  <div className="review-summary"><span>{kinds[op.kind]}</span><span>{isProducer?selectedProducer?.name??'Sin productor':op.kind==='transfer'?warehouses.find(w=>w.id===op.destination_id)?.name??'Sin destino':op.details.destination||'—'}</span><span>{items.length} {items.length===1?'insumo':'insumos'}</span><strong>{money(total,op.currency)}</strong></div>
+  {!readonly&&(missing.length?<div className="missing"><b>Antes de {op.kind==='purchase'?'confirmar':'emitir'} falta:</b><ul>{missing.map(m=><li key={m}>{m}</li>)}</ul></div>:<p className="ready">Todo listo para {op.kind==='purchase'?'confirmar':'emitir'}.</p>)}
+  {isProducer&&<label className="check"><input type="checkbox" checked={op.details.reviewed==='yes'} onChange={e=>details('reviewed',e.target.checked?'yes':'')}/>Revisé productor, cantidades y precios. Corresponden a lo que se entregó.</label>}
+ </section>
+ </div>
  <details className="step more"><summary>Más datos (opcional): campaña, guía y datos de FRUGLOBE</summary>
   <div className="form-grid">
    <label>Campaña<input value={op.details.campaign??''} onChange={e=>details('campaign',e.target.value)}/></label>
@@ -114,12 +130,6 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
   </div>
   <ActaFields d={resolvedDetails} producer={selectedProducer} isProducer={isProducer} parts={['company','extra']} onChange={patch=>setOp({...op,details:{...op.details,...patch,reviewed:''}})}/>
  </details>
- <section className="step"><h3><span className="step-number">5</span>Revisar y {op.kind==='purchase'?'confirmar':'emitir'}</h3>
-  <label>Observaciones<textarea placeholder="Opcional" value={op.details.notes??''} onChange={e=>details('notes',e.target.value)}/></label>
-  <div className="review-summary"><span>{kinds[op.kind]}</span><span>{isProducer?selectedProducer?.name??'Sin productor':op.kind==='transfer'?warehouses.find(w=>w.id===op.destination_id)?.name??'Sin destino':op.details.destination||'—'}</span><span>{items.length} {items.length===1?'insumo':'insumos'}</span><strong>{money(total,op.currency)}</strong></div>
-  {!readonly&&(missing.length?<div className="missing"><b>Antes de {op.kind==='purchase'?'confirmar':'emitir'} falta:</b><ul>{missing.map(m=><li key={m}>{m}</li>)}</ul></div>:<p className="ready">Todo listo para {op.kind==='purchase'?'confirmar':'emitir'}.</p>)}
-  {isProducer&&<label className="check"><input type="checkbox" checked={op.details.reviewed==='yes'} onChange={e=>details('reviewed',e.target.checked?'yes':'')}/>Revisé productor, cantidades y precios. Corresponden a lo que se entregó.</label>}
- </section>
  </fieldset><div className="actions step-actions">{!readonly&&<><button className="quiet" disabled={!items.length}>Guardar borrador</button><button type="button" disabled={!!missing.length} onClick={()=>run(async()=>{await save();await rpc('field_issue_operation',{p_id:op.id});await open(op.id);setPreview(true);})}>{op.kind==='historical'?'Emitir acta histórica':op.kind==='purchase'?'Confirmar ingreso':'Confirmar y emitir acta'}</button></>}<button type="button" className="quiet" onClick={()=>setPreview(!preview)}>{preview?'Ocultar acta':'Ver acta'}</button>{readonly&&<button type="button" onClick={()=>{setPreview(true);setTimeout(()=>window.print(),150);}}>Imprimir / guardar PDF</button>}</div></form>
  {readonly&&op.status!=='cancelled'&&<section className="followup"><h3>Firma y regularización NISIRA</h3><label>Documento NISIRA / referencia<input value={nisira} onChange={e=>setNisira(e.target.value)}/></label><button onClick={()=>run(async()=>{await rpc('field_set_followup',{p_id:op.id,p_reference:nisira});await open(op.id);})}>Guardar referencia</button><label>Adjuntar acta firmada (PDF, JPG o PNG; máximo 10 MB)<input type="file" accept="application/pdf,image/png,image/jpeg" onChange={e=>{const file=e.target.files?.[0];if(file)run(async()=>{if(file.size>10485760)throw new Error('El archivo supera 10 MB');if(!['application/pdf','image/png','image/jpeg'].includes(file.type))throw new Error('Usa PDF, JPG o PNG');const path=`${op.id}/${crypto.randomUUID()}.${file.type==='application/pdf'?'pdf':file.type==='image/png'?'png':'jpg'}`;const {error}=await db().storage.from('signed-actas').upload(path,file);if(error)throw new Error(error.message);try{await rpc('field_set_followup',{p_id:op.id,p_reference:nisira,p_path:path});}catch(e){throw new Error(`El archivo se subió pero no se vinculó. Reintenta adjuntarlo. ${e instanceof Error?e.message:''}`);}await open(op.id);});}}/></label>{op.signed_path&&<button className="quiet" onClick={()=>run(async()=>{const {data,error}=await db().storage.from('signed-actas').createSignedUrl(op.signed_path!,120);if(error)throw new Error(error.message);window.open(data.signedUrl,'_blank','noopener,noreferrer');})}>Abrir acta firmada</button>}</section>}
  {op.number&&op.status!=='cancelled'&&<details className="danger-zone"><summary>Anular documento</summary><p>La anulación conserva el historial y revierte el stock cuando corresponde.</p><label>Motivo<input value={cancelReason} minLength={5} onChange={e=>setCancelReason(e.target.value)}/></label><button className="danger" disabled={cancelReason.trim().length<5} onClick={()=>run(async()=>{await rpc('field_cancel_operation',{p_id:op.id,p_reason:cancelReason});await open(op.id);setCancelReason('');})}>Anular y registrar reverso</button>{canManage&&<p className="field-help">Para eliminarlo, primero anúlalo.</p>}</details>}

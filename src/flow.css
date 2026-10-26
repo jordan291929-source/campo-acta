@@ -12,3 +12,28 @@ button.link{background:none;color:#214f3d;padding:0;min-height:0;width:auto;marg
 @media print{.step-actions{position:static}}
 .step-actions button{margin:0}@media(max-width:700px){.step-actions button{padding:10px 8px;font-size:13px;min-height:42px}}
 .money-row{background:#f1f5ed;border-radius:10px;padding:0 18px;margin-top:14px}.money-row label{margin:14px 0}
+.pending-account{max-width:640px;margin:40px auto}.pending-account h1{font-size:26px}.pending-account p{line-height:1.6}
+/* Formulario compacto: aprovecha el ancho y reduce el desplazamiento vertical. */
+.dashboard{max-width:1680px;padding:28px 3vw}
+.step{padding:14px 0}.step>h3{margin:0 0 10px;font-size:16px}.step-number{width:26px;height:26px;font-size:13px}
+.step label,.steps-pair label{margin:8px 0}.step input,.step select{min-height:40px;padding:8px 12px;margin-top:5px}.step textarea{min-height:60px}
+.step .form-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:0 16px}.form-grid .span2{grid-column:span 2}
+.choices{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}button.choice{padding:10px 14px;gap:3px;border-width:1.5px}button.choice b{font-size:14px}button.choice span{font-size:11.5px}
+.line-card{display:grid;grid-template-columns:minmax(240px,2.6fr) repeat(4,minmax(105px,1fr)) auto;gap:6px 16px;align-items:center;padding:8px 14px;margin:8px 0}.line-card .line-product{margin:0}.line-card .mini{margin-bottom:2px}.line-card b{font-size:15px;margin:0}.line-empty{grid-column:span 4;font-size:13px;color:#617268}.line-remove{justify-self:end}
+.stepper{margin-top:0}.stepper button{width:36px;min-height:36px;font-size:18px}.stepper input{width:64px;min-height:36px;padding:4px}
+.money-row{display:flex;flex-wrap:wrap;align-items:end;gap:0 16px;padding:4px 16px;margin-top:10px}.money-row label{margin:8px 0;min-width:180px}.money-row .total{margin:8px 0 14px auto}
+.steps-pair{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:0 32px;border-bottom:1px solid #e3e9df}.steps-pair>.step{border-bottom:0}
+.step .acta-section{padding:6px 0 10px;border-bottom:0}.step .acta-section h3{font-size:14px;margin:0 0 8px}.step .acta-section .form-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.step .debt-summary{padding:10px 14px}.step .debt-summary strong{font-size:18px}.step .field-help{margin:6px 0}.step .recipient-summary{padding:10px 14px;gap:3px}
+.review-summary{padding:10px 14px}.missing{padding:10px 14px;margin:10px 0}.missing ul{line-height:1.55}
+@media(max-width:1100px){.step .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.steps-pair{grid-template-columns:1fr}.line-card{grid-template-columns:repeat(4,minmax(0,1fr))}.line-card .line-product{grid-column:1/-1}.line-remove{grid-column:1/-1}}
+@media(max-width:700px){.step .form-grid,.step .acta-section .form-grid{grid-template-columns:1fr}.form-grid .span2{grid-column:auto}.line-card{grid-template-columns:1fr 1fr}.line-empty{grid-column:1/-1}.money-row .total{margin-left:0}}
+/* Tipo de documento: tarjetas seleccionables con ícono y círculo de selección. */
+button.choice{flex-direction:row;align-items:center;gap:12px;cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s}
+button.choice:hover:not(:disabled){border-color:#73964e;background:#f6f9f3;box-shadow:0 2px 8px #214f3d14}
+.choice-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:10px;background:#edf2eb;color:#214f3d;flex-shrink:0}
+button.choice.selected .choice-icon{background:#214f3d;color:#fff}
+.choice-text{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+button.choice .choice-text span{font-size:11.5px;color:#617268;font-weight:400;line-height:1.35}
+.choice-radio{width:22px;height:22px;border-radius:50%;border:2px solid #b9c9b5;display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0}
+button.choice.selected .choice-radio{background:#214f3d;border-color:#214f3d}
+.step-hint{display:inline;font:400 12px 'DM Sans',Arial;color:#617268;margin:0 0 0 4px}
