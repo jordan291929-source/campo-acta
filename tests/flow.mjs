@@ -156,6 +156,28 @@ try{
  await db.exec(`select set_config('request.jwt.claim.sub','${uid3}',false)`);await assert.rejects(rpc('field_save_product',[{...catalogProduct,family:'fertilizer'}]),/Esta cuenta no puede/);
  await db.exec('reset role;set role anon');await assert.rejects(rpc('field_save_product',[catalogProduct]),/permission denied/);
  console.log('OK: familias persistentes, validación y permisos; precios sin familia y migración repetida conservan clasificación y stock.');
+ // Eliminación de productos sin uso: permisos, existencias, documentos y copia de auditoría.
+ await db.exec('reset role');const deleteProductsSql=await readFile(new URL('../supabase/migrations/202610260011_delete_products.sql',import.meta.url),'utf8');await db.exec(deleteProductsSql);await db.exec(deleteProductsSql);
+ await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${uid}',false)`);
+ const newProduct=async name=>rpc('field_save_product',[{name,presentation:'Envase x 1 L',unit:'UN',package_size:1,currency:'USD',cost_price:1,sale_price:2,family:'oil'}]);
+ const unused=await newProduct('Producto eliminable'),zeroProduct=await newProduct('Producto en cero'),unknownProduct=await newProduct('Saldo desconocido'),usedProduct=await newProduct('Producto con historial');
+ await rpc('field_set_initial',[zeroProduct,sur,0,date,'Saldo cero de prueba']);
+ await db.exec('reset role');await db.query('insert into public.opening_balances(product_id,warehouse_id,quantity,as_of,verified,source_reference) values($1,$2,null,$3,false,$4)',[unknownProduct,sur,date,'Prueba de saldo desconocido']);
+ await db.query('insert into public.opening_balances(product_id,warehouse_id,quantity,as_of,verified,source_reference) values($1,$2,0,$3,true,$4)',[usedProduct,sur,date,'Movimiento de prueba']);
+ await db.query("insert into public.stock_movements(operation_id,product_id,warehouse_id,quantity_delta,movement_type,occurred_on,reference,created_by) values($1,$2,$3,1,'purchase',$4,'Movimiento anterior de prueba',$5)",[id(),usedProduct,sur,date,uid]);
+ await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${uid2}',false)`);await assert.rejects(rpc('field_delete_product',[unused,'Sin autorización']),/Solo administración/);
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid3}',false)`);await assert.rejects(rpc('field_delete_product',[unused,'Cuenta sin acceso']),/Solo administración/);
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid}',false)`);
+ await assert.rejects(rpc('field_delete_product',[unused,'']),/motivo/);await assert.rejects(rpc('field_delete_product',[unknownProduct,'Intento desconocido']),/saldos por confirmar/);
+ await assert.rejects(rpc('field_delete_product',[usedProduct,'Intento con historial']),/movimientos registrados/);await assert.rejects(rpc('field_delete_product',[product,'Intento con documento']),/acta o borrador/);
+ const positiveProduct=await newProduct('Producto con stock');await rpc('field_set_initial',[positiveProduct,sur,5,date,'Saldo positivo de prueba']);await assert.rejects(rpc('field_delete_product',[positiveProduct,'Intento con stock']),/tiene stock/);
+ const priorBalance=await balance();await rpc('field_delete_product',[unused,'Producto de prueba']);await rpc('field_delete_product',[zeroProduct,'Producto de prueba en cero']);
+ assert.equal((await db.query('select * from public.products where id=$1 or id=$2',[unused,zeroProduct])).rows.length,0);assert.equal((await db.query('select * from public.opening_balances where product_id=$1',[zeroProduct])).rows.length,0);assert.equal(await balance(),priorBalance,'Eliminar producto sin uso conserva el stock de los demás');
+ await assert.rejects(rpc('field_delete_product',[unused,'Intento repetido']),/Producto no encontrado/);
+ const productAudit=(await db.query("select details from public.field_audit where action='delete_product'")).rows;assert.equal(productAudit.length,2);assert.ok(productAudit.some(a=>a.details.product.id===zeroProduct&&a.details.opening_balances.length===1));
+ await assert.rejects(db.query('delete from public.products where id=$1',[positiveProduct]),/permission denied/);
+ await db.exec('reset role;set role anon');await assert.rejects(rpc('field_delete_product',[positiveProduct,'Acceso anónimo']),/permission denied/);
+ console.log('OK: eliminar productos solo por administración, motivo y auditoría; bloquea actas, movimientos, stock positivo y saldos desconocidos.');
  await db.exec('reset role;set role anon');await assert.rejects(db.query('select * from public.producers'),/permission denied/);
  console.log('OK: registro automático, acceso compartido, histórica sin descuento, salida atómica/idempotente, rechazo de insuficiencia y fecha, traslado, consumo, reversos, edición concurrente, firmas, snapshot y permisos.');
  console.log('OK: Campo opera salidas y productores; bloqueo real de productos/precios, carga y saldos iniciales; administrador conserva acceso; restricción previa al alta y persistente por usuario.');
