@@ -1,10 +1,12 @@
 import type {Line,Operation,Warehouse} from './model';
 import {code,fmt,money,kinds,packageLabel} from './model';
+import logo from './assets/fruglobe-logo.jpeg';
 const blank='________________________________';
 export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses:Warehouse[]}){
  const d=op.details,p=op.producer_snapshot,producer=op.kind==='delivery'||op.kind==='historical';
  const value=(s?:string)=>s||blank;
- return <article className="acta"><div className="acta-heading"><b>FRUGLOBE S.A.C.</b><span>RUC {value(d.company_ruc)}</span></div>
+ // Membrete de la hoja FRUGLOBE: se repite en cada página impresa (thead).
+ return <article className="acta"><table className="acta-page"><thead><tr><td><div className="acta-heading"><img src={logo} alt="Fruglobe"/><div><b>FRUGLOBE S.A.C.</b>{d.company_ruc&&<> · <span>RUC {d.company_ruc}</span></>}{d.company_phone&&<> · <span>{d.company_phone}</span></>}<br/>{d.company_address}</div></div></td></tr></thead><tbody><tr><td>
  <h1>{producer?'Acta de entrega y recepción de insumos agrícolas':kinds[op.kind]}</h1>
  <p><b>{code(op.number)}</b> · {op.status==='draft'?'BORRADOR · SIN FIRMA':op.status==='cancelled'?'ANULADA':'DOCUMENTO EMITIDO'}<br/>Lugar: {value(d.place)} · Fecha de entrega física: {op.occurred_on}<br/>Fecha de emisión: {op.issued_at?new Date(op.issued_at).toLocaleDateString('es-PE',{timeZone:'America/Lima'}):'Pendiente'}{op.kind==='historical'&&<><br/><b>Regularización documental de una entrega anterior. No genera una nueva salida de stock.</b></>}</p>
  {op.status==='cancelled'&&<p><b>Motivo de anulación: {op.cancellation_reason}</b></p>}
@@ -35,5 +37,5 @@ export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses
  {!producer&&<p>Movimiento interno. Este documento no genera una obligación de pago de un productor.</p>}
  <p>Leída el acta y completados sus campos, las partes aceptan lo consignado y firman dos ejemplares de igual contenido. Toda corrección debe quedar salvada con las iniciales de ambas partes.</p>
  <div className="signatures"><div><b>Por FRUGLOBE S.A.C.</b><p>Firma: {blank}<br/>Nombre: {value(d.representative_name||d.responsible)}<br/>DNI/CE: {value(d.representative_document)}</p></div><div><b>{producer?'Productor o representante acreditado':'Responsable que recibe'}</b><p>Firma: {blank}<br/>Nombre: {value(d.receiver||p?.name)}<br/>DNI/CE: {value(d.receiver_document||p?.document)}</p></div></div>
- </article>;
+ </td></tr></tbody></table></article>;
 }
