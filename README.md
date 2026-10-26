@@ -106,3 +106,5 @@ Aplicar `202610260008_delete_operations.sql` después de 007. La cuenta administ
 
 ## Aprobación de cuentas
 Aplicar `202610260009_account_approval.sql` después de 008. Las cuentas nuevas quedan pendientes: no leen ni modifican información hasta que administración las aprueba en la pestaña Usuarios. Las cuentas existentes conservan su acceso; las que no estaban restringidas quedan como Administración. Administración edita productos, precios, carga inicial, datos de empresa y usuarios, y puede eliminar documentos; Campo registra salidas y productores. Revisar la lista de Usuarios después de aplicar la migración y quitar el acceso a cualquier cuenta desconocida.
+
+En traslados e ingresos de compra el responsable es personal de almacén: se escribe su nombre (la app sugiere los usados antes) en lugar de elegir un ingeniero de Campo.
