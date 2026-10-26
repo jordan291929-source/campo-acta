@@ -54,6 +54,31 @@ try{
  const path=`${hist.id}/test.pdf`;await db.query("insert into storage.objects(bucket_id,name) values('signed-actas',$1)",[path]);await rpc('field_set_followup',[hist.id,'NS-PRUEBA',path]);assert.equal((await db.query('select status from public.field_operations where id=$1',[hist.id])).rows[0].status,'signed');
  await assert.rejects(db.exec("update public.field_operations set total=0"),/permission denied/);
  await db.exec(`select set_config('request.jwt.claim.sub','${uid2}',false)`);assert.equal((await db.query('select * from public.producers')).rows.length,1,'Mismo acceso para todas las cuentas');
+ await db.exec('reset role');
+ const permissionSql=await readFile(new URL('../supabase/migrations/202610260003_catalog_permissions.sql',import.meta.url),'utf8');
+ await db.exec(permissionSql);await db.exec(permissionSql);
+ await db.exec("insert into public.field_account_restrictions(email) values('almacen@example.test'),('general@example.test')");
+ assert.equal((await db.query("select user_id from public.field_account_restrictions where email='almacen@example.test'")).rows[0].user_id,uid2);
+ await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${uid2}',false)`);
+ assert.equal(await rpc('field_can_manage_catalog',[]),false);
+ await assert.rejects(rpc('field_save_product',[{name:'No permitido'}]),/no puede crear ni editar/);
+ await assert.rejects(rpc('field_import_stock',[importRows,date,'No permitido']),/no puede realizar cargas iniciales/);
+ await assert.rejects(rpc('field_set_initial',[product,sur,10,date,'No permitido']),/no puede modificar saldos iniciales/);
+ await assert.rejects(db.query("select campo_private.field_save_product('{}'::jsonb)"),/permission denied/);
+ await assert.rejects(db.exec('delete from public.field_account_restrictions'),/permission denied/);
+ // Campo conserva productores, salidas, actas y movimientos.
+ await rpc('field_save_producer',[{name:'Otro productor',document:'11111111',predio:'Prueba',details:{}}]);
+ const fieldDelivery=await save('delivery',1);await rpc('field_issue_operation',[fieldDelivery.id]);assert.equal(await balance(),11);
+ await rpc('field_cancel_operation',[fieldDelivery.id,'Prueba de cuenta Campo']);assert.equal(await balance(),12);
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid}',false)`);
+ assert.equal(await rpc('field_can_manage_catalog',[]),true);
+ await rpc('field_save_product',[{name:'Producto permitido',presentation:'Envase x 1 L',unit:'UN',package_size:1,sale_price:1,cost_price:1,currency:'USD'}]);
+ const future='00000000-0000-0000-0000-000000000003';
+ await db.exec(`reset role;insert into auth.users(id,email) values('${future}','general@example.test')`);
+ assert.equal((await db.query("select user_id from public.field_account_restrictions where email='general@example.test'")).rows[0].user_id,future);
+ await db.exec(`update auth.users set email='changed@example.test' where id='${future}';set role authenticated;select set_config('request.jwt.claim.sub','${future}',false)`);
+ assert.equal(await rpc('field_can_manage_catalog',[]),false,'Cambiar correo no elimina la restricción de la cuenta');
  await db.exec('reset role;set role anon');await assert.rejects(db.query('select * from public.producers'),/permission denied/);
  console.log('OK: registro automático, acceso compartido, histórica sin descuento, salida atómica/idempotente, rechazo de insuficiencia y fecha, traslado, consumo, reversos, edición concurrente, firmas, snapshot y permisos.');
+ console.log('OK: Campo opera salidas y productores; bloqueo real de productos/precios, carga y saldos iniciales; administrador conserva acceso; restricción previa al alta y persistente por usuario.');
 }finally{await db.close();}

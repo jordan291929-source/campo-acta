@@ -6,7 +6,7 @@ Con la instalación inicial existente, ejecutar **todo** `supabase/migrations/20
 
 En Authentication habilitar **Allow new users to sign up** si estaba desactivado. La app ofrece Crear cuenta; Supabase puede solicitar confirmación por correo según su configuración. Configurar Site URL con el dominio real de Vercel y autorizar ese dominio como URL de redirección en Authentication. Si se decide trabajar sin confirmación de correo, esa opción se cambia en Supabase; no requiere cambiar código.
 
-Las cuentas existentes y nuevas reciben perfil automáticamente. Todos los usuarios autenticados tienen las mismas funciones. No se necesita asignar roles operativos ni habilitar cada usuario por SQL. Las tablas siguen requiriendo sesión.
+Las cuentas existentes y nuevas reciben perfil automáticamente. Las cuentas comparten las operaciones de Campo. Se puede restringir por cuenta la carga inicial y la edición de productos/precios mediante la migración 003. No se necesitan roles operativos para las salidas. Las tablas siguen requiriendo sesión.
 
 ## Flujo disponible
 - **Productores:** crear y editar identidad, predio, dirección y datos de contacto.
@@ -77,3 +77,8 @@ La plantilla de compras tiene 16 productos, todos en SUR, y marca TIPO_BASE=COMP
 Con esta base, las salidas y traslados anteriores deben registrarse como movimientos que descuentan stock una sola vez. En la preparación de salidas del kardex se elige si deben descontar o si ya estaban descontadas. Regularización documental sin descuento solo corresponde cuando la salida física ya fue registrada. La fecha base documental de la plantilla es la última emisión de factura; se puede revisar antes de confirmar y no se considera fecha probada de recepción física.
 
 Productos también permite cargar un archivo privado de precios sin IGV +15% y aplicarlo al catálogo según la unidad de control. No modifica las actas emitidas.
+
+## Cuenta de Campo con catálogo de consulta
+Aplicar la migración 202610260003_catalog_permissions.sql después de 002. Registrar el correo de la cuenta restringida en field_account_restrictions con can_manage_catalog=false desde SQL Editor. La regla se vincula al usuario existente o al momento de crear su cuenta. Permite operar productores, salidas, firmas, movimientos y NISIRA; restringe importación inicial, saldos iniciales y creación/edición de productos y precios. Las restricciones se validan en el servidor, y las implementaciones internas no están disponibles para llamadas de clientes. La cuenta principal conserva permisos de catálogo.
+
+La interfaz consulta su permiso al actualizar o iniciar sesión. Si aún no se instaló esta migración, mantiene cerradas temporalmente las funciones de catálogo. Nunca volver a aplicar una migración antigua sobre una más reciente.
