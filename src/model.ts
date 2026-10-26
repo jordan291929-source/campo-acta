@@ -11,7 +11,13 @@ export const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',
 export const fmt=(n:number|string)=>new Intl.NumberFormat('es-PE',{maximumFractionDigits:4}).format(Number(n));
 export const money=(n:number|string,currency='USD')=>new Intl.NumberFormat('es-PE',{style:'currency',currency}).format(Number(n));
 export const code=(n?:number)=>`ACT-${String(n??0).padStart(6,'0')}`;
-export const unit=(s:string)=>s==='UN'?'envase/unidad':s;
+export const unit=(s:string)=>s==='UN'?'envases':s;
+// Nombre del envase según la presentación: "BOLSA X 5 KG" → "Bolsa".
+export function packageLabel(presentation='',controlUnit='UN'){
+ if(controlUnit!=='UN')return controlUnit;
+ const word=normalized(presentation).split(/\s+X\s*|\s+DE\s+|\s+\d/)[0].split(' ')[0];
+ return /^[A-Z]{3,}$/.test(word)?word[0]+word.slice(1).toLowerCase():'Envase';
+}
 export const normalized=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
 
 // Envases y contenido son dos formas de mostrar la misma existencia.

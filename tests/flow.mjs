@@ -92,8 +92,26 @@ try{
  await rpc('field_save_company_defaults',[{company_ruc:'00000000000',company_address:'Dirección de prueba',engineers:'Ingeniero Uno\nIngeniero Dos',bank:'Banco de prueba',account:'Cuenta de prueba',payment_channel:'constancias@example.com'}]);
  assert.equal((await rpc('field_company_defaults',[])).engineers,'Ingeniero Uno\nIngeniero Dos');
  await db.exec(`select set_config('request.jwt.claim.sub','${uid2}',false)`);await assert.rejects(rpc('field_save_company_defaults',[{company_ruc:'00000000000',company_address:'Cambio no permitido',engineers:'Otro nombre'}]),/no puede editar datos de empresa/);
+ await db.exec('reset role');
+ // Datos guardados antes de 006: envases del Excel etiquetados como KG y saldos manuales en L.
+ const pk=id(),pl=id(),issued=id(),draft=id();
+ await db.query(`insert into public.products(id,name,presentation,unit,package_size,sale_price,cost_price) values($1,'Bolsa 006','BOLSA X 5 KG','KG',5,6.0424,5.2542),($2,'Envase 006','ENVASE X 20 LT','L',20,3.0212,2.6271)`,[pk,pl]);
+ await db.query(`insert into public.opening_balances(product_id,warehouse_id,quantity,as_of,verified,source_reference,notes) values($1,$3,30,$4,true,'COMPRAS_ORIGINALES','Productos fila 3 · Cantidades en envases; unidad declarada en el Excel UN'),($2,$3,200,$4,true,'Carga manual','Saldo en litros')`,[pk,pl,sur,date]);
+ await db.query(`insert into public.field_operations(id,kind,status,warehouse_id,occurred_on,currency,details,created_by) values($1,'own_consumption','issued',$3,$4,'USD','{}',$5),($2,'delivery','draft',$3,$4,'USD','{"reviewed":"yes"}',$5)`,[issued,draft,sur,date,uid]);
+ await db.query(`insert into public.field_lines(operation_id,product_id,quantity,price,product_name,presentation,unit) values($1,$3,10,6.0424,'Bolsa 006','BOLSA X 5 KG','KG'),($2,$3,10,6.0424,'Bolsa 006','BOLSA X 5 KG','KG')`,[issued,draft,pk]);
+ await db.query(`insert into public.stock_movements(operation_id,product_id,warehouse_id,quantity_delta,movement_type,occurred_on,reference,created_by) values($1,$2,$3,-10,'own_consumption',$4,'ACT-PRUEBA',$5)`,[issued,pk,sur,date,uid]);
+ const unitsSql=await readFile(new URL('../supabase/migrations/202610260006_package_units.sql',import.meta.url),'utf8');await db.exec(unitsSql);await db.exec(unitsSql);
+ const stockOf=async product=>Number((await db.query('select quantity from public.stock_current where product_id=$1 and warehouse_id=$2',[product,sur])).rows[0].quantity);
+ assert.equal(await stockOf(pk),28,'30 bolsas del Excel menos 10 KG (2 bolsas)');assert.equal(await stockOf(pl),10,'200 L manuales = 10 envases de 20 L');
+ assert.equal((await db.query("select count(*)::int n from public.products where unit<>'UN'")).rows[0].n,0);
+ assert.equal(Number((await db.query('select sale_price from public.products where id=$1',[pk])).rows[0].sale_price),30.212,'Precio por bolsa');
+ const draftLine=(await db.query('select quantity,price,unit from public.field_lines where operation_id=$1',[draft])).rows[0];
+ assert.deepEqual([Number(draftLine.quantity),Number(draftLine.price),draftLine.unit],[2,30.212,'UN'],'Borrador conserva importe');
+ assert.equal((await db.query('select details from public.field_operations where id=$1',[draft])).rows[0].details.reviewed,undefined,'Borrador vuelve a revisión');
+ assert.equal((await db.query('select unit from public.field_lines where operation_id=$1',[issued])).rows[0].unit,'KG','Acta emitida sin cambios');
  await db.exec('reset role;set role anon');await assert.rejects(db.query('select * from public.producers'),/permission denied/);
  console.log('OK: registro automático, acceso compartido, histórica sin descuento, salida atómica/idempotente, rechazo de insuficiencia y fecha, traslado, consumo, reversos, edición concurrente, firmas, snapshot y permisos.');
  console.log('OK: Campo opera salidas y productores; bloqueo real de productos/precios, carga y saldos iniciales; administrador conserva acceso; restricción previa al alta y persistente por usuario.');
  console.log('OK: datos comunes compartidos; Campo los consulta y administración los configura.');
+ console.log('OK: 006 convierte L/KG a envases sin duplicar movimientos; precios por envase, borradores a revisión y actas emitidas intactas.');
 }finally{await db.close();}

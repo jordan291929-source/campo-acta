@@ -1,10 +1,12 @@
 import type {Line,Operation,Warehouse} from './model';
-import {code,fmt,money,unit,kinds,equivalentContent} from './model';
+import {code,fmt,money,kinds,packageLabel} from './model';
+import logo from './assets/fruglobe-logo.jpeg';
 const blank='________________________________';
 export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses:Warehouse[]}){
  const d=op.details,p=op.producer_snapshot,producer=op.kind==='delivery'||op.kind==='historical';
  const value=(s?:string)=>s||blank;
- return <article className="acta"><div className="acta-heading"><b>FRUGLOBE S.A.C.</b><span>RUC {value(d.company_ruc)}</span></div>
+ // Membrete de la hoja FRUGLOBE: se repite en cada página impresa (thead).
+ return <article className="acta"><table className="acta-page"><thead><tr><td><div className="acta-heading"><img src={logo} alt="Fruglobe"/><div><b>FRUGLOBE S.A.C.</b>{d.company_ruc&&<> · <span>RUC {d.company_ruc}</span></>}{d.company_phone&&<> · <span>{d.company_phone}</span></>}<br/>{d.company_address}</div></div></td></tr></thead><tbody><tr><td>
  <h1>{producer?'Acta de entrega y recepción de insumos agrícolas':kinds[op.kind]}</h1>
  <p><b>{code(op.number)}</b> · {op.status==='draft'?'BORRADOR · SIN FIRMA':op.status==='cancelled'?'ANULADA':'DOCUMENTO EMITIDO'}<br/>Lugar: {value(d.place)} · Fecha de entrega física: {op.occurred_on}<br/>Fecha de emisión: {op.issued_at?new Date(op.issued_at).toLocaleDateString('es-PE',{timeZone:'America/Lima'}):'Pendiente'}{op.kind==='historical'&&<><br/><b>Regularización documental de una entrega anterior. No genera una nueva salida de stock.</b></>}</p>
  {op.status==='cancelled'&&<p><b>Motivo de anulación: {op.cancellation_reason}</b></p>}
@@ -13,9 +15,11 @@ export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses
  <p>Empresa: FRUGLOBE S.A.C. · RUC: {value(d.company_ruc)}<br/>Domicilio: {value(d.company_address)}<br/>Representante: {value(d.representative_name||d.responsible)} · DNI/CE: {value(d.representative_document)}<br/>Cargo y sustento de facultades: {value(d.authority)}</p>
  {producer?<p>Productor o razón social: {value(p?.name)}<br/>DNI/CE: {value(p?.document?.length===11?'':p?.document)} · RUC: {value(p?.details?.ruc||(p?.document?.length===11?p.document:''))}<br/>Domicilio: {value(p?.details?.address)}<br/>Teléfono: {value(p?.details?.phone)} · Correo: {value(p?.details?.email)}<br/>Predio y código: {value(p?.predio)} · Campaña: {value(d.campaign)}<br/>Ubicación del predio: {value(p?.details?.location)}<br/>Lugar de entrega: {value(d.place)} · Contrato vinculado N.º: {value(d.contract)}</p>:<p>Destino / fundo / proveedor: {value(d.destination)}<br/>Responsable que recibe: {value(d.receiver)}<br/>Campaña: {value(d.campaign)}</p>}
  <p>Ubicación de {op.kind==='purchase'?'ingreso':'origen'}: {warehouses.find(w=>w.id===op.warehouse_id)?.name}{op.kind==='transfer'&&<><br/>Ubicación de destino: {warehouses.find(w=>w.id===op.destination_id)?.name}</>}</p>
- <p>Responsable de la entrega / registro: {value(d.responsible)}</p>\n <h2>2. Insumos entregados y valorización</h2>
- <table><thead><tr><th>Descripción / presentación</th><th>Cantidad</th><th>Unidad</th><th>Precio por unidad ({op.currency})</th><th>Total ({op.currency})</th></tr></thead><tbody>{items.map(l=><tr key={l.product_id}><td>{l.product_name}<small>{l.presentation}</small></td><td>{fmt(l.quantity)}<small>{equivalentContent(l.quantity,l.unit||'',l.presentation||'')}</small></td><td>{unit(l.unit||'')}</td><td>{money(l.price,op.currency)}</td><td>{money(Math.round((l.quantity*l.price+Number.EPSILON)*100)/100,op.currency)}</td></tr>)}</tbody></table>
+ <p>Responsable de la entrega / registro: {value(d.responsible)}</p>
+ <h2>2. Insumos entregados y valorización</h2>
+ <table><thead><tr><th>Descripción / presentación</th><th>Cantidad</th><th>Unidad</th><th>Precio unitario ({op.currency})</th><th>Total ({op.currency})</th></tr></thead><tbody>{items.map(l=><tr key={l.product_id}><td>{l.product_name}<small>{l.presentation}</small></td><td>{fmt(l.quantity)}</td><td>{packageLabel(l.presentation,l.unit)}</td><td>{money(l.price,op.currency)}</td><td>{money(Math.round((l.quantity*l.price+Number.EPSILON)*100)/100,op.currency)}</td></tr>)}</tbody></table>
  <p className="acta-total">PRECIO TOTAL DE LA ENTREGA: {money(op.total??0,op.currency)}</p>
+ {op.currency==='PEN'&&d.exchange_rate&&<p>Tipo de cambio referencial: S/ {d.exchange_rate} por USD{d.exchange_rate_date?`, consultado el ${d.exchange_rate_date}`:''}. Precios en dólares convertidos a soles.</p>}
  <p>Comprobante: {value(d.receipt)} · Referencia de origen: {value(d.source)}</p>
  <h2>3. Conformidad de la recepción física</h2>
  <p>{producer?'El productor declara haber verificado la descripción, las cantidades y el estado aparente de los insumos, según el detalle de la sección 2 y sus anexos.':'El responsable receptor deja constancia de la recepción de los insumos detallados.'} La recepción se realiza: □ Conforme □ Con observaciones consignadas abajo. Los insumos rechazados o no entregados deberán excluirse del total antes de firmar. La conformidad física no impide comunicar defectos no apreciables al recibir ni ejercer los derechos que correspondan.</p>
@@ -33,5 +37,5 @@ export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses
  {!producer&&<p>Movimiento interno. Este documento no genera una obligación de pago de un productor.</p>}
  <p>Leída el acta y completados sus campos, las partes aceptan lo consignado y firman dos ejemplares de igual contenido. Toda corrección debe quedar salvada con las iniciales de ambas partes.</p>
  <div className="signatures"><div><b>Por FRUGLOBE S.A.C.</b><p>Firma: {blank}<br/>Nombre: {value(d.representative_name||d.responsible)}<br/>DNI/CE: {value(d.representative_document)}</p></div><div><b>{producer?'Productor o representante acreditado':'Responsable que recibe'}</b><p>Firma: {blank}<br/>Nombre: {value(d.receiver||p?.name)}<br/>DNI/CE: {value(d.receiver_document||p?.document)}</p></div></div>
- </article>;
+ </td></tr></tbody></table></article>;
 }
