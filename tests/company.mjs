@@ -5,7 +5,7 @@ import ts from 'typescript';
 import assert from 'node:assert/strict';
 const output=resolve('.qa/company');await mkdir(output,{recursive:true});
 for(const name of ['model','company']){const code=(await readFile(`src/${name}.ts`,'utf8')).replaceAll("from './model'","from './model.mjs'");await writeFile(`${output}/${name}.mjs`,ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText);}
-const {actaDetails,engineerActaDetails,dateInput,engineerList,findEngineer}=await import(pathToFileURL(`${output}/company.mjs`).href);
+const {actaDetails,engineerActaDetails,dateInput,engineerList,findEngineer,engineerRecords,engineerDocument}=await import(pathToFileURL(`${output}/company.mjs`).href);
 const DEFAULT_COMPANY={company_address:'Dirección de prueba',company_ruc:'00000000000'};
 const producer={id:'p1',name:'Productor de prueba',document:'00123456',predio:'Predio',details:{}};
 const draft=actaDetails({responsible:'Campo'},DEFAULT_COMPANY,producer,120,'USD');
@@ -25,3 +25,14 @@ assert.equal(completed.representative_document,'DOCUMENTO-PRUEBA');assert.equal(
 assert.equal(engineerActaDetails({...completed,authority:'Cargo acordado'},companySigner,producer,240,'PEN').authority,'Cargo acordado');
 assert.equal(actaDetails({},companySigner,undefined,0,'PEN').authority,'Gerente General');assert.equal(companySigner.representative_document,'DOCUMENTO-EMPRESA');
 console.log('OK: DNI y cargo propios del ingeniero en el acta, sin heredar ni cambiar el firmante general.');
+
+const registered={...companySigner,engineers:'Ing. Ingeniero Uno | 00000000\nIngeniero Dos | CE-PRUEBA\nIngeniero Antiguo\n'};
+assert.deepEqual(engineerList(registered),['Ingeniero Uno','Ingeniero Dos','Ingeniero Antiguo']);
+assert.equal(engineerDocument('Ing. INGENIERO UNO',registered),'00000000');assert.equal(engineerDocument('Ingeniero Antiguo',registered),'');assert.equal(engineerDocument('Desconocido',registered),'');
+assert.equal(engineerRecords({engineers:'Ingeniero Uno\nIngeniero Uno | 00000000'}).length,1);
+assert.equal(engineerDocument('Ingeniero Uno',{engineers:'Ingeniero Uno\nIngeniero Uno | 00000000'}),'00000000');
+const autoEngineer=engineerActaDetails({responsible:'Ingeniero Uno'},registered,producer,120,'PEN');assert.equal(autoEngineer.representative_document,'00000000');assert.equal(autoEngineer.authority,'Ingeniero de Campo');
+assert.equal(engineerActaDetails({responsible:'Ingeniero Dos'},registered,producer,120,'PEN').representative_document,'CE-PRUEBA');
+assert.equal(engineerActaDetails({...autoEngineer,representative_document:'DOCUMENTO-ACTA'},{...registered,engineers:'Ingeniero Uno | OTRO-DOCUMENTO'},producer,120,'PEN').representative_document,'DOCUMENTO-ACTA');
+assert.equal(engineerActaDetails({...autoEngineer,representative_document:''},registered,producer,120,'PEN').representative_document,'');
+console.log('OK: listado nombre y documento compatible con nombres anteriores; DNI automático y copia guardada del acta conservada.');

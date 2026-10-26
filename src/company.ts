@@ -5,16 +5,16 @@ export const COMPANY_NAME='FRUGLOBE S.A.C.';
 // La identidad fiscal se obtiene de Supabase, nunca del bundle público.
 export const DEFAULT_COMPANY:Details={};
 export const COMPANY_FIELDS=[['company_ruc','RUC de FRUGLOBE'],['company_address','Dirección de FRUGLOBE'],['company_phone','Teléfono de FRUGLOBE (membrete)'],['representative_name','Nombre de quien firma por FRUGLOBE'],['representative_document','DNI / CE de quien firma'],['authority','Cargo y documento que acredita su representación'],['bank','Banco y titular de la cuenta'],['account','Cuenta bancaria o CCI de FRUGLOBE'],['payment_channel','Dónde enviar la constancia de pago'],['copy_channel','Cómo se entrega la copia del acta']] as const;
-export const COMPANY_CONFIG_FIELDS=[...COMPANY_FIELDS,['engineers','Ingenieros de Campo (un nombre por línea)']] as const;
-export function engineerList(defaults:Details){
- const result:string[]=[];const seen=new Set<string>();
- for(const raw of (defaults.engineers??'').split(/\r?\n/)){const name=raw.replace(/^\s*Ing\.?\s+/i,'').trim();const key=name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();if(name&&!seen.has(key)){seen.add(key);result.push(name);}}
+export const COMPANY_CONFIG_FIELDS=[...COMPANY_FIELDS,['engineers','Ingenieros de Campo (nombre y DNI / CE)']] as const;
+const engineerKey=(value:string)=>value.replace(/^\s*Ing\.?\s+/i,'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+export function engineerRecords(defaults:Details){
+ const result:{name:string;document:string}[]=[];
+ for(const raw of (defaults.engineers??'').split(/\r?\n/)){const [rawName,rawDocument='']=raw.split('|');const name=rawName.replace(/^\s*Ing\.?\s+/i,'').trim();if(!name)continue;const found=result.find(e=>engineerKey(e.name)===engineerKey(name));if(found){if(!found.document)found.document=rawDocument.trim();}else result.push({name,document:rawDocument.trim()});}
  return result;
 }
-export function findEngineer(value:string,names:string[]){
- const key=(s:string)=>s.replace(/^\s*Ing\.?\s+/i,'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
- return names.find(name=>key(name)===key(value));
-}
+export function engineerList(defaults:Details){return engineerRecords(defaults).map(e=>e.name);}
+export function findEngineer(value:string,names:string[]){return names.find(name=>engineerKey(name)===engineerKey(value));}
+export function engineerDocument(value:string,defaults:Details){return engineerRecords(defaults).find(e=>engineerKey(e.name)===engineerKey(value))?.document??'';}
 export function actaDetails(details:Details,defaults:Details,producer:Producer|undefined,total:number,currency:string):Details{
  const result={...details};
  for(const [key]of COMPANY_FIELDS)if(!result[key]&&defaults[key])result[key]=defaults[key];
@@ -27,7 +27,7 @@ export function actaDetails(details:Details,defaults:Details,producer:Producer|u
 }
 // El ingeniero firma esta entrega; no hereda el DNI ni el cargo del representante general.
 export function engineerActaDetails(details:Details,defaults:Details,producer:Producer|undefined,total:number,currency:string):Details{
- return {...actaDetails(details,defaults,producer,total,currency),representative_name:details.responsible?.trim()||'',representative_document:details.representative_document??'',authority:details.authority??'Ingeniero de Campo'};
+ return {...actaDetails(details,defaults,producer,total,currency),representative_name:details.responsible?.trim()||'',representative_document:details.representative_document??engineerDocument(details.responsible??'',defaults),authority:details.authority??'Ingeniero de Campo'};
 }
 export function dateInput(value=''){
  if(/^\d{4}-\d{2}-\d{2}$/.test(value))return value;
