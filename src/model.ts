@@ -22,6 +22,18 @@ export const normalized=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/
 
 // Envases y contenido son dos formas de mostrar la misma existencia.
 // La equivalencia nunca genera otro movimiento ni cambia precios guardados.
+export function packageCount(quantity:number|string,presentation='',controlUnit='UN'){
+ const label=packageLabel(presentation,controlUnit);
+ if(controlUnit!=='UN')return `${fmt(quantity)} ${label}`;
+ const word=label.toLowerCase();
+ return `${fmt(quantity)} ${Number(quantity)===1?word:word+(/[aeiou]$/.test(word)?'s':'es')}`;
+}
+// Contenido de cada envase para referencia: "de 205 L c/u".
+export function packageContent(presentation:string,controlUnit='UN',packageSize?:number|string){
+ const content=presentationContent(presentation);
+ const size=Number(packageSize??content?.size);
+ return controlUnit==='UN'&&content&&size>0?`de ${fmt(size)} ${content.unit}`:'';
+}
 export function presentationContent(presentation:string){
  const text=normalized(presentation).replace(/\bL\s+T\b/g,'LT');
  const match=text.match(/(?:X\s*)?(\d+(?:[.,]\d+)?)\s*(KILOGRAMOS?|KGS?|LITROS?|LTS?|L)\b/);
