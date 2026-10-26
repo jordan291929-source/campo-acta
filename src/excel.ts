@@ -32,9 +32,9 @@ export async function readExcel(file:File){
    if('PRODUCTOR /FUNDO'in cells){headers=cells;return;}
    if(!headers['PRODUCTOR /FUNDO'])return;
    const get=(h:string)=>headers[h]?text(row.getCell(headers[h]).value):'';
-   const name=get('PRODUCTOR /FUNDO'),document=get('DNI'),predio=get('CLP PREDIO');if(!name||['TOTAL','TOTALES'].includes(normalized(name))||!/[a-záéíóúñ]/i.test(name))return;
+   const name=get('PRODUCTOR /FUNDO'),document=get('DNI')||get('RUC'),predio=get('CLP PREDIO');if(!name||['TOTAL','TOTALES'].includes(normalized(name))||!/[a-záéíóúñ]/i.test(name))return;
    const key=`${normalized(name)}|${document}|${predio}`;
-   if(!producers.has(key))producers.set(key,{name,document,predio,details:{location:[get('DEPARTAMENTO'),get('DISTRITO'),get('SECTOR/ZONA')].filter(Boolean).join(' / '),responsible:get('ING. RESPONSABLE'),source:file.name}});
+   if(!producers.has(key))producers.set(key,{name,document,predio,details:Object.fromEntries(Object.entries({location:[get('DEPARTAMENTO'),get('DISTRITO'),get('SECTOR/ZONA')].filter(Boolean).join(' / '),responsible:get('ING. RESPONSABLE'),address:get('DOMICILIO'),phone:get('TELEFONO')||get('TELÉFONO'),email:get('CORREO'),ruc:get('RUC'),source:file.name}).filter(([,v])=>v!==''))});
   });
  });
  const allProducers=[...producers.values()];
