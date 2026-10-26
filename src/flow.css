@@ -50,3 +50,5 @@ button.choice.selected .choice-radio{background:#214f3d;border-color:#214f3d}
 .step .date-fields>label{display:grid;grid-template-rows:subgrid;grid-row:span 3;align-content:start}
 .step .date-fields input{height:40px}
 @media(max-width:700px){.money-row{display:grid;grid-template-columns:minmax(0,1fr)}.money-row label{width:100%;min-width:0}.money-row .total{margin:8px 0 12px}.step .date-fields{grid-template-rows:none}.step .date-fields>label{display:block;grid-row:auto}}
+.brand,.brand-title,.title-row>div{min-width:0}.brand-title{line-height:1.35}.brand{flex:1}.title-row h1{overflow-wrap:break-word}
+@media(max-width:700px){header{gap:12px}.brand{gap:10px}.brand>.brand-title{font-size:14px}.brand-logo{max-width:75px;height:auto}.brand small{font-size:9px;letter-spacing:0}}
