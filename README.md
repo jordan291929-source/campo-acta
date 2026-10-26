@@ -1,63 +1,72 @@
 # Campo Acta
+Control interno de campo de FRUGLOBE: stock ProHass, productores y actas de salida. React + TypeScript + Vite + Supabase; Vercel publica desde GitHub.
 
-Aplicación independiente de FRUGLOBE para control de insumos. React + TypeScript + Vite + Supabase. Alojamiento previsto en Vercel.
+## Activar esta actualización
+Con la instalación inicial existente, ejecutar **todo** `supabase/migrations/202610260002_full_flow.sql` en SQL Editor de Supabase. Incluye `reset role;`, funciona sobre la migración inicial y puede volver a ejecutarse. No borra registros ni carga existencias ficticias. No repetir el SQL inicial si ya existe.
 
-## Estado de esta versión
+En Authentication habilitar **Allow new users to sign up** si estaba desactivado. La app ofrece Crear cuenta; Supabase puede solicitar confirmación por correo según su configuración. Configurar Site URL con el dominio real de Vercel y autorizar ese dominio como URL de redirección en Authentication. Si se decide trabajar sin confirmación de correo, esa opción se cambia en Supabase; no requiere cambiar código.
 
-Implementado: acceso con correo y contraseña, sesión persistente, verificación de usuario habilitado, consulta de existencias por ubicación, filtros y estados de carga/error. El stock se actualiza al abrir la sesión o pulsar Actualizar stock; todavía no usa suscripciones en tiempo real.
+Las cuentas existentes y nuevas reciben perfil automáticamente. Todos los usuarios autenticados tienen las mismas funciones. No se necesita asignar roles operativos ni habilitar cada usuario por SQL. Las tablas siguen requiriendo sesión.
 
-Preparado en SQL: perfiles con roles, productos, ubicaciones, saldos iniciales, libro de movimientos, vista de stock y depósito privado de documentos. Solo lectura desde la aplicación. No hay registro público ni posibilidad de asignarse permisos desde el navegador.
+## Flujo disponible
+- **Productores:** crear y editar identidad, predio, dirección y datos de contacto.
+- **Productos:** presentación, unidad de control, contenido por envase, costo de compra y precio al productor, por separado.
+- **Carga inicial:** seleccionar los Excel locales. Lee Productos y Registro de Movimientos del kardex; lee productores del proyecto. Revisión antes de confirmar: unidades, cantidad y fecha de corte. No sube los archivos originales a GitHub.
+- **Stock:** saldos por Sur, Norte y Chincha. Actualizar información consulta los cambios de otros usuarios.
+- **Salidas y actas:** nuevo documento, borrador editable, confirmación y acta imprimible/guardar PDF con las condiciones del Word enviado. Los datos de productor, producto y precio quedan fijados al emitir.
+- **Históricas:** formalizan entregas ya descontadas sin modificar existencias. Desde Carga inicial se pueden preparar borradores por grupo del kardex; revisar destinatario, unidades y precio.
+- **Ingresos de compra:** incrementan stock del almacén elegido.
+- **Transferencias:** descuentan origen y suman destino en la misma transacción.
+- **Consumo propio:** descuenta stock sin generar deuda de productor.
+- **Firma:** adjuntar PDF/JPG/PNG (hasta 10 MB), abrir copia firmada con enlace temporal.
+- **NISIRA:** registrar referencia del documento para seguimiento. No hay sincronización automática con el ERP.
+- **Anulación:** motivo obligatorio, mantiene historial y genera reverso de movimientos. Si un ingreso/transferencia ya se consumió y no puede revertirse, la anulación se rechaza.
+- **Movimientos:** libro de stock y trazabilidad de operaciones.
 
-Pendiente: maestros editables, importación validada, actas históricas y nuevas, firma adjunta, operaciones transaccionales de almacén, consumos, transferencias, ajustes, descuentos y seguimiento NISIRA. Esta versión no es todavía un sistema operativo completo.
+No se ha implementado aplicación automática de descuentos en liquidaciones ni cálculo de cobranzas. El acta conserva la autorización y el importe de la entrega para su control posterior.
 
-## Instalación Supabase
+## Importación y unidades
+La hoja Productos del kardex tiene 32 posiciones producto/almacén. Conservamos las cifras; el usuario confirma si representan envases, litros o kilos. Elegir Envases guarda las existencias como UN; no multiplica las cifras por la presentación. Una fracción de UN representa una fracción de envase. L/KG controla contenido directamente.
 
-1. En SQL Editor ejecutar una sola vez `supabase/migrations/202610260001_initial.sql`. Crea objetos nuevos; no ejecutar si ya hay tablas homónimas sin revisar.
-2. En Authentication > Users crear un usuario con correo y contraseña, confirmado. Deshabilitar los registros públicos en la configuración de Authentication.
-3. Copiar su UUID y ejecutar el siguiente SQL sustituyendo los valores:
+No sumar unidades diferentes. La unidad/contenido de un producto con saldos no se cambia: crear otra presentación para evitar reinterpretar registros existentes.
 
-```sql
-insert into public.profiles(id,full_name,role)
-values ('UUID_DEL_USUARIO','Jordan','admin');
+- Las entregas anteriores ya estaban descontadas del stock.
+- Las observaciones amarillas de uso previsto en Chincha no son salidas.
+- Un saldo desconocido permanece null, nunca cero.
+- La importación inicial es transaccional y rechaza posiciones ya cargadas; no duplica stock.
+- El kardex nuevo contiene saldos cero explícitos donde el archivo anterior tenía errores. Revisar antes de cargar.
+- Los productores sin documento se pueden guardar; completarlo antes de emitir un acta. Nombres parecidos o alias deben revisarse; no se fusionan por suposición.
+- Los códigos internos del kardex (por ejemplo 2923-1) se conservan en las notas de origen y **no se consideran códigos NISIRA**.
+- Los precios del acta se expresan por unidad de control, en la moneda indicada. No se convierten monedas automáticamente; cambiar moneda reinicia precios.
+- Una nueva salida anterior a la fecha de corte se rechaza: usar histórica cuando ya esté descontada.
+
+## Acceso y consistencia
+RLS habilitado, sin lectura anónima. Todas las cuentas comparten acceso funcional. Escritura de documentos y libro solo mediante funciones transaccionales; la app no puede editar directamente saldos calculados ni documentos emitidos. Las funciones comprueban sesión. El control compartido de operaciones evita consumos concurrentes por encima del saldo. Guardar borradores usa versión para detectar edición simultánea. Confirmar y anular repetidamente no duplica movimientos.
+
+Los archivos firmados están en un bucket privado con lectura para usuarios autenticados. No se elimina ni reemplaza el original desde la aplicación.
+
+## Configuración Vercel
+Proyecto actual: `fruglobe`; repositorio `jordan291929-source/campo-acta`.
+Framework Vite, build `npm run build`, salida `dist`.
+Variables para Production/Preview (visibilidad Config):
+```text
+VITE_SUPABASE_URL=https://aeokjqnjfajuftivftdq.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<clave pública>
 ```
+Volver a desplegar al cambiar variables. Nunca usar claves secretas en variables VITE_.
 
-4. Agregar usuarios adicionales del mismo modo con rol `campo`, `almacen` o `administracion`. En esta primera versión todos los miembros activos consultan stock; las operaciones de escritura aún están cerradas incluso para el perfil admin.
-5. La carga inicial se hará después de conciliar los archivos privados. No se incluyen en este repositorio público nombres, DNI, precios ni saldos operativos.
-
-## Configuración local
-
-Copiar `.env.example` como `.env.local` y reemplazar la clave por la Publishable key del proyecto. Usar Node.js 22.12 o superior.
-
+## Desarrollo y pruebas
+Node 22.12 o superior. Copiar .env.example a .env.local y completar la clave pública.
 ```text
 npm ci
 npm run dev
+npm run build
+npm test
 ```
+`tests/database.mjs` prueba la primera instalación en aislamiento.
+`tests/flow.mjs` prueba la actualización y el circuito: alta automática, acceso uniforme, importación inicial, saldo histórico sin doble descuento, insuficiencia, idempotencia, transferencias, consumos, reversos, edición simultánea, referencias, firma y snapshots.
+`node tests/excel.mjs <kardex.xlsx> <proyecto.xlsx>` comprueba los lectores sobre archivos locales.
+`node tests/print-preview.mjs` genera una muestra sintética en .qa/acta.html para inspección visual con el servidor local.
+Las pruebas no modifican el proyecto real de Supabase.
 
-## Vercel
-
-Importar `jordan291929-source/campo-acta`. Seleccionar Vite, comando de compilación `npm run build`, directorio de salida `dist`.
-
-Configurar en Environment Variables, para los entornos que se vayan a utilizar:
-
-```text
-VITE_SUPABASE_URL=https://aeokjqnjfajuftivftdq.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=<clave publica del proyecto>
-```
-
-Volver a desplegar después de modificar las variables. No necesita claves secretas de Supabase ni acceso directo de Vercel a PostgreSQL. Nunca agregar service_role, secret keys o contraseña de base de datos a variables VITE_: se incorporan al navegador.
-
-## Reglas de la carga inicial
-
-- Archivo de stock Norte–Sur: representa el saldo restante después de las entregas históricas. Falta confirmar fecha de corte.
-- ENTREGADO en el historial: formalización documental sin nueva salida de stock. PENDIENTE no equivale a entregado. Estados parciales requieren validar cantidad real.
-- Amarillo y observaciones de uso futuro en Chincha: no son salidas ni reservas confirmadas.
-- Los cuatro #REF! de Sur permanecen desconocidos (`quantity = null`, `verified = false`), nunca cero.
-- Verificar Argenfrut 205/209 L y Nutri-Aktiv Ca-B-Zn 5/20 L antes de homologar productos.
-- Controlar L/KG en unidad base; al importar envases multiplicar cantidad de envases por contenido validado. UN solo para productos controlados por unidades.
-- Código NISIRA como texto y solo tras verificación; nunca inventarlo.
-- Precio de compra y precio al productor deben ser campos distintos en el módulo de entregas. Importes fijados por documento, sin actualizar actas anteriores al cambiar un catálogo.
-- Consumo propio en Chincha no genera deuda a productor. Transferencia a Chincha y aplicación son movimientos diferentes.
-
-## Verificación
-
-`npm run build` comprueba tipos y genera la versión distribuible. Para validar permisos en Supabase, comprobar: visitante sin sesión no lee tablas; usuario sin perfil no lee stock; miembro activo sí lee; ningún miembro puede escribir o cambiar su rol mediante la API. La SQL debe validarse en un proyecto de prueba antes de cargar datos operativos. Las copias de seguridad y restauración se configurarán antes de operar con datos reales.
+Los Excel reales y los datos personales nunca deben agregarse al repositorio público. Configurar respaldos del proyecto Supabase antes de su operación habitual.
