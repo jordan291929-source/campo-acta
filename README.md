@@ -15,6 +15,7 @@ Las migraciones se ejecutan **a mano, en orden**, en el SQL Editor de Supabase (
 | 007 letterhead_phone | Teléfono del membrete |
 | 008 delete_operations | Eliminación de borradores y anuladas por administración |
 | 009 account_approval | Cuentas nuevas pendientes de aprobación y rol de administración |
+| 010 product_families | Familia de producto editable por administración; compatible con importaciones de precios |
 
 En Authentication, configurar Site URL con el dominio real de Vercel y autorizarlo como URL de redirección. Crear cuenta está disponible en la app, pero desde la 009 toda cuenta nueva queda **pendiente** hasta que administración la apruebe en la pestaña Usuarios.
 
@@ -120,3 +121,5 @@ Aplicar `202610260008_delete_operations.sql` después de 007. La cuenta administ
 Aplicar `202610260009_account_approval.sql` después de 008. Las cuentas nuevas quedan pendientes: no leen ni modifican información hasta que administración las aprueba en la pestaña Usuarios. Las cuentas existentes conservan su acceso; las que no estaban restringidas quedan como Administración. Administración edita productos, precios, carga inicial, datos de empresa y usuarios, y puede eliminar documentos; Campo registra salidas y productores. Revisar la lista de Usuarios después de aplicar la migración y quitar el acceso a cualquier cuenta desconocida.
 
 En traslados e ingresos de compra el responsable es personal de almacén: se escribe su nombre (la app sugiere los usados antes) en lugar de elegir un ingeniero de Campo.
+
+El stock permite filtrar por familia y almacén, con valorización de las existencias al costo de catálogo sin IGV (no al precio al productor). Muestra USD y PEN según el TC referencial indicado. Saldos desconocidos, costos pendientes y conversiones sin TC se excluyen del total y se identifican como parciales. La familia se asigna desde Productos; los productos previos empiezan sin clasificar.

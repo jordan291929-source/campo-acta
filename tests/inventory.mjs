@@ -1,0 +1,21 @@
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+import ts from 'typescript';
+import assert from 'node:assert/strict';
+const output=resolve('.qa/inventory');await mkdir(output,{recursive:true});
+for(const name of ['model','exchange','inventory']){const source=(await readFile(`src/${name}.ts`,'utf8')).replaceAll("from './model'","from './model.mjs'").replaceAll("from './exchange'","from './exchange.mjs'");await writeFile(`${output}/${name}.mjs`,ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText);}
+const {stockValue,inventoryTotals,familyOf}=await import(pathToFileURL(`${output}/inventory.mjs`).href);
+const p={id:'p',family:'oil',unit:'UN',cost_price:8,sale_price:100,currency:'USD'};const s={product_id:'p',warehouse_id:'sur',quantity:10,unit:'UN'};
+assert.equal(stockValue(s,p,'USD',3.5),80);assert.equal(stockValue(s,p,'PEN',3.5),280,'Valorización a costo sin margen');
+assert.equal(stockValue(s,{...p,currency:'PEN',cost_price:28},'USD',3.5),80);
+assert.equal(stockValue({...s,quantity:null},p,'USD',3.5),null);assert.equal(stockValue(s,{...p,cost_price:0},'USD',3.5),null);
+assert.equal(stockValue(s,p,'PEN',0),null);assert.equal(stockValue(s,p,'USD',0),80);
+assert.equal(stockValue({...s,quantity:0},undefined,'PEN',0),0);assert.equal(stockValue({...s,quantity:-1},p,'USD',3.5),null);
+assert.equal(stockValue({...s,quantity:2},{...p,cost_price:1.2345},'USD',3.5),2.47);
+assert.equal(stockValue(s,{...p,unit:'L'},'USD',3.5),null,'No reinterpreta unidades distintas');
+const rows=[s,{...s,warehouse_id:'norte',quantity:2},{...s,warehouse_id:'chincha',quantity:null}];
+assert.deepEqual(inventoryTotals(rows,[p],3.5),{usd:96,pen:336,usdMissing:1,penMissing:1});
+assert.deepEqual(inventoryTotals(rows,[p],0),{usd:96,pen:0,usdMissing:1,penMissing:3});
+assert.equal(familyOf(p),'oil');assert.equal(familyOf(undefined),'unclassified');assert.equal(familyOf({...p,family:'otra'}),'unclassified');
+console.log('OK: valorización a costo USD/PEN, stock por almacén, totales parciales sin inventar saldos ni costos y familias compatibles.');

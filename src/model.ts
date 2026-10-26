@@ -1,6 +1,6 @@
 export type Details = Record<string,string>;
 export type Producer = {id:string;name:string;document:string;predio:string;details:Details};
-export type Product = {id:string;name:string;presentation:string;unit:string;package_size:number;sale_price:number;cost_price:number;currency:string};
+export type Product = {family?:string;id:string;name:string;presentation:string;unit:string;package_size:number;sale_price:number;cost_price:number;currency:string};
 export type Warehouse = {id:string;name:string;code:string};
 export type Stock = {product_id:string;warehouse_id:string;product_name:string;presentation:string;unit:string;warehouse_name:string;quantity:number|null;verified:boolean;as_of:string};
 export type Line = {product_id:string;quantity:number;price:number;product_name?:string;presentation?:string;unit?:string};

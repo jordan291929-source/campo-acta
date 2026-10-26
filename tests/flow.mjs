@@ -144,6 +144,18 @@ try{
  const restricted=await save('delivery',1);
  await db.exec(`select set_config('request.jwt.claim.sub','${uid2}',false)`);
  await assert.rejects(rpc('field_delete_operation',[restricted.id,'Sin permiso de administración']),/administradora/);
+ // Familias: migración repetible y permisos de catálogo sin cambiar saldos.
+ await db.exec('reset role');const familySql=await readFile(new URL('../supabase/migrations/202610260010_product_families.sql',import.meta.url),'utf8');
+ const beforeFamily=await balance();await db.exec(familySql);await db.exec(familySql);assert.equal(await balance(),beforeFamily);
+ await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${uid}',false)`);
+ const catalogProduct=(await db.query('select * from public.products where id=$1',[product])).rows[0];assert.equal(catalogProduct.family,'unclassified');
+ await rpc('field_save_product',[{...catalogProduct,family:'oil'}]);assert.equal((await db.query('select family from public.products where id=$1',[product])).rows[0].family,'oil');
+ const {family:ignoredFamily,...priceUpdate}=catalogProduct;await rpc('field_save_product',[priceUpdate]);assert.equal((await db.query('select family from public.products where id=$1',[product])).rows[0].family,'oil','Actualizar precio sin familia conserva la clasificación');
+ await assert.rejects(rpc('field_save_product',[{...catalogProduct,family:'incorrecta'}]),/Familia de producto no válida/);assert.equal(await balance(),beforeFamily);
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid2}',false)`);await assert.rejects(rpc('field_save_product',[{...catalogProduct,family:'fertilizer'}]),/Esta cuenta no puede/);
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid3}',false)`);await assert.rejects(rpc('field_save_product',[{...catalogProduct,family:'fertilizer'}]),/Esta cuenta no puede/);
+ await db.exec('reset role;set role anon');await assert.rejects(rpc('field_save_product',[catalogProduct]),/permission denied/);
+ console.log('OK: familias persistentes, validación y permisos; precios sin familia y migración repetida conservan clasificación y stock.');
  await db.exec('reset role;set role anon');await assert.rejects(db.query('select * from public.producers'),/permission denied/);
  console.log('OK: registro automático, acceso compartido, histórica sin descuento, salida atómica/idempotente, rechazo de insuficiencia y fecha, traslado, consumo, reversos, edición concurrente, firmas, snapshot y permisos.');
  console.log('OK: Campo opera salidas y productores; bloqueo real de productos/precios, carga y saldos iniciales; administrador conserva acceso; restricción previa al alta y persistente por usuario.');
