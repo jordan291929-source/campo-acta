@@ -38,3 +38,15 @@ button.choice .choice-text span{font-size:11.5px;color:#617268;font-weight:400;l
 button.choice.selected .choice-radio{background:#214f3d;border-color:#214f3d}
 .step-hint{display:inline;font:400 12px 'DM Sans',Arial;color:#617268;margin:0 0 0 4px}
 .row-actions{align-items:center;flex-wrap:wrap}
+/* Alinea controles con ayudas y etiquetas de distinta longitud. */
+.step,.step .form-grid>*,.line-card>*,.money-row>*,.acta-fields{min-width:0}
+.step input,.step select,.step textarea{min-width:0;max-width:100%}
+.money-row{align-items:flex-start;gap:0 16px}
+.money-row label:first-child{flex:0 1 180px}
+.money-row label:nth-child(2){flex:0 1 355px}
+.money-row .total{align-self:flex-start;margin-top:32px}
+.steps-pair>.step{overflow-wrap:anywhere}
+.step .date-fields{grid-template-rows:auto auto auto;row-gap:0}
+.step .date-fields>label{display:grid;grid-template-rows:subgrid;grid-row:span 3;align-content:start}
+.step .date-fields input{height:40px}
+@media(max-width:700px){.money-row{display:grid;grid-template-columns:minmax(0,1fr)}.money-row label{width:100%;min-width:0}.money-row .total{margin:8px 0 12px}.step .date-fields{grid-template-rows:none}.step .date-fields>label{display:block;grid-row:auto}}
