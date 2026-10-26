@@ -24,6 +24,7 @@ const kindIcons:Record<string,string>={
  purchase:'M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8',
  historical:'M12 8v4l3 2M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
 };
+const staffKinds=['transfer','purchase'];
 const KindIcon=({kind}:{kind:string})=><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={kindIcons[kind]}/></svg>;
 export function Operations({rows,products,producers,warehouses,stock,run,name,seed,active=true,companyDefaults=DEFAULT_COMPANY,canManage=false}:{rows:Operation[];products:Product[];producers:Producer[];warehouses:Warehouse[];stock:Stock[];run:Run;name:string;seed?:HistoryGroup;active?:boolean;companyDefaults?:Details;canManage?:boolean}){
  const fresh=(kind='delivery'):Operation=>({id:crypto.randomUUID(),kind,status:'draft',warehouse_id:warehouses.find(w=>w.code==='SUR')?.id??'',destination_id:null,producer_id:null,occurred_on:today(),currency:'PEN',details:{responsible:''}});
@@ -47,6 +48,9 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
  async function save(){await rpc('field_save_operation',{p:{...op,details:resolvedDetails},p_lines:priced.map(l=>({product_id:l.product_id,quantity:l.quantity,price:l.price})),p_version:op.version??null});await open(op.id);}
  const printOp={...op,details:{...resolvedDetails,company_ruc:resolvedDetails.company_ruc||companyDefaults.company_ruc||''},total:readonly?Number(op.total??total):total,producer_snapshot:readonly?op.producer_snapshot:producers.find(p=>p.id===op.producer_id)};
  const consumes=['delivery','own_consumption','transfer'].includes(op.kind);
+ // En traslados e ingresos entrega o recibe personal de almacén, no un ingeniero de Campo.
+ const warehouseStaff=staffKinds.includes(op.kind);
+ const staffNames=[...new Set(rows.filter(o=>staffKinds.includes(o.kind)).map(o=>o.details?.responsible?.trim()).filter((n):n is string=>!!n))].sort();
  const balanceOf=(productId:string)=>stock.find(s=>s.product_id===productId&&s.warehouse_id===op.warehouse_id)?.quantity??null;
  const shortLines=consumes&&items.some(l=>{const b=balanceOf(l.product_id);return !!l.product_id&&b!==null&&l.quantity>Number(b);});
  const needsRate=op.currency==='PEN'&&!(rate>0)&&items.some(l=>products.find(p=>p.id===l.product_id)?.currency==='USD');
@@ -55,7 +59,7 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
   isProducer&&!op.producer_id&&'Elegir el productor (paso 2).',
   isProducer&&selectedProducer&&!selectedProducer.document&&'El productor no tiene DNI/RUC: complétalo en Productores.',
   op.kind==='transfer'&&!op.destination_id&&'Elegir el almacén de destino (paso 2).',
-  !selectedEngineer&&'Elegir el ingeniero que entrega (paso 2).',
+  (warehouseStaff?!op.details.responsible?.trim()&&'Escribir el responsable de almacén (paso 2).':!selectedEngineer&&'Elegir el ingeniero que entrega (paso 2).'),
   !items.length&&'Agregar al menos un insumo (paso 3).',
   items.some(l=>!l.product_id)&&'Elegir el producto en cada insumo (paso 3).',
   items.some(l=>!(l.quantity>0))&&'Indicar la cantidad de cada insumo (paso 3).',
@@ -77,7 +81,7 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
  {readonly&&<p className="field-help">Documento {states[op.status].toLowerCase()}: solo lectura. Para corregirlo, anúlalo y registra uno nuevo.</p>}
  <form onSubmit={e=>{e.preventDefault();run(save);}}><fieldset disabled={readonly}>
  <section className="step"><h3><span className="step-number">1</span>¿Qué vas a registrar? <small className="step-hint">Toca una opción</small></h3>
-  <div className="choices">{kindChoices.filter(([k])=>k!=='historical'||op.kind==='historical').map(([k,title,help])=><button type="button" key={k} className={`choice${op.kind===k?' selected':''}`} aria-pressed={op.kind===k} onClick={()=>setOp({...op,kind:k,destination_id:null,producer_id:null})}><span className="choice-icon"><KindIcon kind={k}/></span><span className="choice-text"><b>{title}</b><span>{help}</span></span><span className="choice-radio" aria-hidden="true">{op.kind===k?'✓':''}</span></button>)}</div>
+  <div className="choices">{kindChoices.filter(([k])=>k!=='historical'||op.kind==='historical').map(([k,title,help])=><button type="button" key={k} className={`choice${op.kind===k?' selected':''}`} aria-pressed={op.kind===k} onClick={()=>setOp({...op,kind:k,destination_id:null,producer_id:null,details:staffKinds.includes(k)===warehouseStaff?op.details:{...op.details,responsible:''}})}><span className="choice-icon"><KindIcon kind={k}/></span><span className="choice-text"><b>{title}</b><span>{help}</span></span><span className="choice-radio" aria-hidden="true">{op.kind===k&&<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5L20 7"/></svg>}</span></button>)}</div>
  </section>
  <section className="step"><h3><span className="step-number">2</span>{isProducer?'¿A quién y cuándo?':'¿Dónde y cuándo?'}</h3>
   <div className="form-grid">
@@ -86,7 +90,7 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
    {op.kind==='transfer'&&<label>Almacén de destino<select value={op.destination_id??''} onChange={e=>setOp({...op,destination_id:e.target.value||null})}><option value="">Elige el destino</option>{warehouses.filter(w=>w.id!==op.warehouse_id).map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></label>}
    {!isProducer&&op.kind!=='transfer'&&<label>{destinationLabel}<input value={op.details.destination??''} onChange={e=>details('destination',e.target.value)}/></label>}
    <label>Fecha de {op.kind==='purchase'?'ingreso':'entrega'}<input type="date" max={today()} required value={op.occurred_on} onChange={e=>setOp({...op,occurred_on:e.target.value})}/></label>
-   <label>{op.kind==='purchase'?'Responsable que registra':'Ingeniero que entrega'}<select value={selectedEngineer??op.details.responsible??''} onChange={e=>details('responsible',e.target.value)}><option value="">{engineers.length?'Elige el ingeniero':'Configura el listado en Datos de empresa'}</option>{!selectedEngineer&&op.details.responsible&&<option value={op.details.responsible} disabled>{readonly?'Responsable guardado: ':'Valor anterior: '}{op.details.responsible}</option>}{engineers.map(engineer=><option key={engineer} value={engineer}>{engineer}</option>)}</select></label>
+   {warehouseStaff?<label>{op.kind==='transfer'?'Responsable de almacén que entrega':'Responsable de almacén que recibe'}<input list="warehouse-staff" placeholder="Nombre y apellido" value={op.details.responsible??''} onChange={e=>details('responsible',e.target.value)}/><datalist id="warehouse-staff">{staffNames.map(n=><option key={n} value={n}/>)}</datalist></label>:<label>Ingeniero que entrega<select value={selectedEngineer??op.details.responsible??''} onChange={e=>details('responsible',e.target.value)}><option value="">{engineers.length?'Elige el ingeniero':'Configura el listado en Datos de empresa'}</option>{!selectedEngineer&&op.details.responsible&&<option value={op.details.responsible} disabled>{readonly?'Responsable guardado: ':'Valor anterior: '}{op.details.responsible}</option>}{engineers.map(engineer=><option key={engineer} value={engineer}>{engineer}</option>)}</select></label>}
    {isProducer&&<label>Lugar de entrega<input placeholder="Ej.: Fundo, almacén o caserío" value={op.details.place??''} onChange={e=>details('place',e.target.value)}/></label>}
   </div>
  </section>
