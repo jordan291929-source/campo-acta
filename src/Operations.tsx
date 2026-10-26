@@ -67,6 +67,8 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
   needsRate&&'Ingresar el tipo de cambio (paso 3).',
   isProducer&&op.details.reviewed!=='yes'&&'Marcar la casilla de revisión (paso 5).',
  ].filter((x):x is string=>!!x);
+ // Datos comunes de FRUGLOBE que el acta de productor imprimiría en blanco.
+ const companyGaps=isProducer?([['representative_document','DNI del representante'],['authority','cargo y sustento de facultades'],['bank','banco y titular'],['account','cuenta o CCI']] as const).filter(([k])=>!resolvedDetails[k]).map(([,label])=>label):[];
  const setQuantity=(i:number,quantity:number)=>setItems(items.map((x,j)=>i===j?{...x,quantity}:x));
  const destinationLabel=op.kind==='purchase'?'Proveedor y comprobante':'Fundo o destino del uso';
  const rateField=<label>Tipo de cambio (S/ por 1 USD)<input type="number" step="0.001" min="0.001" placeholder="Ej.: 3.380" value={op.details.exchange_rate??''} onChange={e=>setRate(e.target.value,today(),'manual')}/><small>{op.details.exchange_rate_date?`Consultado el ${op.details.exchange_rate_date} · ${op.details.exchange_rate_source==='manual'?'ingresado manualmente':op.details.exchange_rate_source}`:'Sin tipo de cambio'}{!readonly&&<> · <button type="button" className="link" onClick={()=>run(async()=>{const x=await fetchUsdPen();setRate(String(x.rate),x.date,x.source);})}>Usar TC de hoy</button></>}</small></label>;
@@ -117,13 +119,14 @@ export function Operations({rows,products,producers,warehouses,stock,run,name,se
   {needsRate&&<p className="alert">No se pudo obtener el tipo de cambio. Escríbelo para calcular los precios en soles.</p>}
  </section>
  <div className="steps-pair">
- <section className="step"><h3><span className="step-number">4</span>{isProducer?'¿Quién recibe y cómo se descuenta?':'¿Quién recibe?'}</h3>
-  <ActaFields d={resolvedDetails} producer={selectedProducer} isProducer={isProducer} parts={['recipient','discount']} onChange={patch=>setOp({...op,details:{...op.details,...patch,reviewed:''}})}/>
+ <section className="step"><h3><span className="step-number">4</span>{isProducer?'¿Quién recibe y cómo se descuenta?':op.kind==='purchase'?'¿Quién entrega la compra?':'¿Quién recibe?'}</h3>
+  <ActaFields d={resolvedDetails} producer={selectedProducer} isProducer={isProducer} giver={op.kind==='purchase'} parts={['recipient','discount']} onChange={patch=>setOp({...op,details:{...op.details,...patch,reviewed:''}})}/>
  </section>
  <section className="step"><h3><span className="step-number">5</span>Revisar y {op.kind==='purchase'?'confirmar':'emitir'}</h3>
   <label>Observaciones<textarea placeholder="Opcional" value={op.details.notes??''} onChange={e=>details('notes',e.target.value)}/></label>
   <div className="review-summary"><span>{kinds[op.kind]}</span><span>{isProducer?selectedProducer?.name??'Sin productor':op.kind==='transfer'?warehouses.find(w=>w.id===op.destination_id)?.name??'Sin destino':op.details.destination||'—'}</span><span>{items.length} {items.length===1?'insumo':'insumos'}</span><strong>{money(total,op.currency)}</strong></div>
   {!readonly&&(missing.length?<div className="missing"><b>Antes de {op.kind==='purchase'?'confirmar':'emitir'} falta:</b><ul>{missing.map(m=><li key={m}>{m}</li>)}</ul></div>:<p className="ready">Todo listo para {op.kind==='purchase'?'confirmar':'emitir'}.</p>)}
+  {!readonly&&!!companyGaps.length&&<p className="missing">En el acta saldrán en blanco: <b>{companyGaps.join(', ')}</b>. {canManage?<>Complétalos una sola vez en la pestaña <b>Datos de empresa</b>.</>:'Pide a administración que los complete en Datos de empresa.'}</p>}
   {isProducer&&<label className="check"><input type="checkbox" checked={op.details.reviewed==='yes'} onChange={e=>details('reviewed',e.target.checked?'yes':'')}/>Revisé productor, cantidades y precios. Corresponden a lo que se entregó.</label>}
  </section>
  </div>
