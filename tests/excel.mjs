@@ -12,7 +12,7 @@ try{
  const {readExcel}=await import(pathToFileURL(`${output}/excel.mjs`).href);
  for(const path of process.argv.slice(2)){
   const file=new File([await readFile(path)],basename(path));const result=await readExcel(file);
-  if(result.stock.length){assert.equal(result.stock.length,32);assert.equal(result.history.length,5);assert.ok(result.stock.every(s=>s.unit===''));assert.ok(result.history.every(g=>!g.description.toUpperCase().includes('TRASLADO')));}
+  if(result.stock.length){assert.equal(result.stock.length,32);assert.equal(result.history.length,5);assert.ok(result.stock.every(s=>s.unit==='UN'));assert.ok(result.history.every(g=>!g.description.toUpperCase().includes('TRASLADO')));}
   if(result.producers.length){assert.ok(result.producers.every(p=>p.name));assert.ok(result.producers.some(p=>p.document));}
   console.log(JSON.stringify({file:basename(path),stock:result.stock.length,historyGroups:result.history.length,producers:result.producers.length}));
  }

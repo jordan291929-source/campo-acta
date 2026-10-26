@@ -26,7 +26,7 @@ Las cuentas existentes y nuevas reciben perfil automáticamente. Todos los usuar
 No se ha implementado aplicación automática de descuentos en liquidaciones ni cálculo de cobranzas. El acta conserva la autorización y el importe de la entrega para su control posterior.
 
 ## Importación y unidades
-La hoja Productos del kardex tiene 32 posiciones producto/almacén. Conservamos las cifras; el usuario confirma si representan envases, litros o kilos. Elegir Envases guarda las existencias como UN; no multiplica las cifras por la presentación. Una fracción de UN representa una fracción de envase. L/KG controla contenido directamente.
+La hoja Productos del kardex tiene 32 posiciones producto/almacén. Las cantidades del kardex se interpretan inicialmente como envases (UN). La aplicación muestra el contenido total calculado automáticamente: 10 envases x 20 L = 200 L. La misma equivalencia se muestra en la vista de carga, el stock, las salidas y las actas. No genera movimientos adicionales ni cambia los precios guardados. Si un registro ya se controla en L/KG, conserva su contenido sin multiplicarlo nuevamente. Una fracción de UN representa una fracción de envase.
 
 No sumar unidades diferentes. La unidad/contenido de un producto con saldos no se cambia: crear otra presentación para evitar reinterpretar registros existentes.
 

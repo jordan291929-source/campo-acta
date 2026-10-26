@@ -13,3 +13,27 @@ export const money=(n:number|string,currency='USD')=>new Intl.NumberFormat('es-P
 export const code=(n?:number)=>`ACT-${String(n??0).padStart(6,'0')}`;
 export const unit=(s:string)=>s==='UN'?'envase/unidad':s;
 export const normalized=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+
+// Envases y contenido son dos formas de mostrar la misma existencia.
+// La equivalencia nunca genera otro movimiento ni cambia precios guardados.
+export function presentationContent(presentation:string){
+ const text=normalized(presentation).replace(/\bL\s+T\b/g,'LT');
+ const match=text.match(/(?:X\s*)?(\d+(?:[.,]\d+)?)\s*(KILOGRAMOS?|KGS?|LITROS?|LTS?|L)\b/);
+ if(!match)return null;
+ const size=Number(match[1].replace(',','.'));
+ return size>0?{size,unit:match[2].startsWith('K')?'KG':'L'}:null;
+}
+export function stockAmounts(quantity:number|string|null,controlUnit:string,presentation:string,packageSize?:number|string){
+ const content=presentationContent(presentation);
+ const size=Number(packageSize??content?.size);
+ if(quantity===null||!Number.isFinite(Number(quantity))||!Number.isFinite(size)||size<=0)return null;
+ const value=Number(quantity);
+ if(controlUnit==='UN'&&content)return {packages:value,content:value*size,contentUnit:content.unit};
+ if(controlUnit==='L'||controlUnit==='KG')return {packages:value/size,content:value,contentUnit:controlUnit};
+ return null;
+}
+export function equivalentContent(quantity:number|string|null,controlUnit:string,presentation:string,packageSize?:number|string){
+ const a=stockAmounts(quantity,controlUnit,presentation,packageSize);
+ if(!a)return '';
+ return controlUnit==='UN'?`${fmt(a.content)} ${a.contentUnit} en total`:`${fmt(a.packages)} envases equivalentes`;
+}

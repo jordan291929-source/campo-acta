@@ -1,4 +1,4 @@
-import {normalized,type Details} from './model';
+import {normalized,presentationContent,type Details} from './model';
 export type ImportStock={name:string;presentation:string;warehouse:string;quantity:number|null;unit:string;package_size:number;notes:string};
 export type HistoryGroup={key:string;date:string;warehouse:string;description:string;responsible:string;items:{name:string;quantity:number;sourceUnit:string}[]};
 const text=(v:unknown):string=>{if(v==null)return '';if(v instanceof Date)return v.toISOString().slice(0,10);if(typeof v==='object'){const x=v as {result?:unknown;text?:string;richText?:{text:string}[];error?:string};if(x.error)return '';if('result'in x)return text(x.result);if(x.richText)return x.richText.map(v=>v.text).join('');return x.text??'';}return String(v).trim();};
@@ -12,8 +12,8 @@ export async function readExcel(file:File){
    if(i<3||!text(row.getCell(1).value))return;
    const name=text(row.getCell(2).value),presentation=text(row.getCell(3).value),wh=normalized(text(row.getCell(5).value));
    if(!name||(!wh.includes('SUR')&&!wh.includes('NORTE')))return;
-   const size=Number(presentation.match(/X\s*(\d+(?:[.,]\d+)?)/i)?.[1]?.replace(',','.'))||1;
-   stock.push({name,presentation,warehouse:wh.includes('SUR')?'SUR':'NORTE',quantity:quantity(row.getCell(8).value),unit:'',package_size:size,notes:`${file.name} · Productos fila ${i} · Código interno ${text(row.getCell(1).value)} · Unidad declarada ${text(row.getCell(6).value)}`});
+   const size=presentationContent(presentation)?.size||1;
+   stock.push({name,presentation,warehouse:wh.includes('SUR')?'SUR':'NORTE',quantity:quantity(row.getCell(8).value),unit:'UN',package_size:size,notes:`${file.name} · Productos fila ${i} · Código interno ${text(row.getCell(1).value)} · Cantidades en envases; unidad declarada en el Excel ${text(row.getCell(6).value)}`});
   });
   if(normalized(sheet.name)==='REGISTRO DE MOVIMIENTOS')sheet.eachRow((row,i)=>{
    const q=quantity(row.getCell(8).value),desc=text(row.getCell(9).value),date=text(row.getCell(1).value),wh=normalized(text(row.getCell(5).value));
