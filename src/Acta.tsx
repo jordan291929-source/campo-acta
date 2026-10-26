@@ -5,17 +5,26 @@ const blank='________________________________';
 export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses:Warehouse[]}){
  const d=op.details,p=op.producer_snapshot,producer=op.kind==='delivery'||op.kind==='historical';
  const value=(s?:string)=>s||blank;
+ const warehouse=(id?:string|null)=>value(warehouses.find(w=>w.id===id)?.name);
+ // Movimientos internos: quién entrega y quién recibe según el tipo.
+ const internal={transfer:{giver:'Entrega (almacén de origen)',taker:'Recibe (almacén de destino)'},own_consumption:{giver:'Entrega',taker:'Recibe en fundo / destino'},purchase:{giver:'Entrega (proveedor o transportista)',taker:'Recibe en almacén'}}[op.kind]??{giver:'Entrega',taker:'Recibe'};
  // Membrete de la hoja FRUGLOBE: se repite en cada página impresa (thead).
  return <article className="acta"><table className="acta-page"><thead><tr><td><div className="acta-heading"><img src={logo} alt="Fruglobe"/><div><b>FRUGLOBE S.A.C.</b>{d.company_ruc&&<> · <span>RUC {d.company_ruc}</span></>}{d.company_phone&&<> · <span>{d.company_phone}</span></>}<br/>{d.company_address}</div></div></td></tr></thead><tbody><tr><td>
  <h1>{producer?'Acta de entrega y recepción de insumos agrícolas':kinds[op.kind]}</h1>
- <p><b>{code(op.number)}</b> · {op.status==='draft'?'BORRADOR · SIN FIRMA':op.status==='cancelled'?'ANULADA':'DOCUMENTO EMITIDO'}<br/>Lugar: {value(d.place)} · Fecha de entrega física: {op.occurred_on}<br/>Fecha de emisión: {op.issued_at?new Date(op.issued_at).toLocaleDateString('es-PE',{timeZone:'America/Lima'}):'Pendiente'}{op.kind==='historical'&&<><br/><b>Regularización documental de una entrega anterior. No genera una nueva salida de stock.</b></>}</p>
+ <p><b>{code(op.number)}</b> · {op.status==='draft'?'BORRADOR · SIN FIRMA':op.status==='cancelled'?'ANULADA':'DOCUMENTO EMITIDO'}<br/>{producer&&<>Lugar: {value(d.place)} · </>}Fecha {op.kind==='purchase'?'de ingreso':'de entrega física'}: {op.occurred_on}<br/>Fecha de emisión: {op.issued_at?new Date(op.issued_at).toLocaleDateString('es-PE',{timeZone:'America/Lima'}):'Pendiente'}{op.kind==='historical'&&<><br/><b>Regularización documental de una entrega anterior. No genera una nueva salida de stock.</b></>}</p>
  {op.status==='cancelled'&&<p><b>Motivo de anulación: {op.cancellation_reason}</b></p>}
  {producer&&<p>Las partes identificadas a continuación dejan constancia de los insumos entregados por FRUGLOBE S.A.C. al productor, de su valor y de las condiciones acordadas para su pago. Completar todos los campos aplicables y anular los espacios no utilizados.</p>}
- <h2>1. Identificación de las partes y destino</h2>
- <p>Empresa: FRUGLOBE S.A.C. · RUC: {value(d.company_ruc)}<br/>Domicilio: {value(d.company_address)}<br/>Representante: {value(d.representative_name||d.responsible)} · DNI/CE: {value(d.representative_document)}<br/>Cargo y sustento de facultades: {value(d.authority)}</p>
- {producer?<p>Productor o razón social: {value(p?.name)}<br/>DNI/CE: {value(p?.document?.length===11?'':p?.document)} · RUC: {value(p?.details?.ruc||(p?.document?.length===11?p.document:''))}<br/>Domicilio: {value(p?.details?.address)}<br/>Teléfono: {value(p?.details?.phone)} · Correo: {value(p?.details?.email)}<br/>Predio y código: {value(p?.predio)} · Campaña: {value(d.campaign)}<br/>Ubicación del predio: {value(p?.details?.location)}<br/>Lugar de entrega: {value(d.place)} · Contrato vinculado N.º: {value(d.contract)}</p>:<p>Destino / fundo / proveedor: {value(d.destination)}<br/>Responsable que recibe: {value(d.receiver)}<br/>Campaña: {value(d.campaign)}</p>}
- <p>Ubicación de {op.kind==='purchase'?'ingreso':'origen'}: {warehouses.find(w=>w.id===op.warehouse_id)?.name}{op.kind==='transfer'&&<><br/>Ubicación de destino: {warehouses.find(w=>w.id===op.destination_id)?.name}</>}</p>
- <p>Responsable de la entrega / registro: {value(d.responsible)}</p>
+ <h2>1. {producer?'Identificación de las partes y destino':'Datos del movimiento'}</h2>
+ <p>Empresa: FRUGLOBE S.A.C. · RUC: {value(d.company_ruc)}<br/>Domicilio: {value(d.company_address)}{producer&&<><br/>Representante: {value(d.representative_name||d.responsible)} · DNI/CE: {value(d.representative_document)}<br/>Cargo y sustento de facultades: {value(d.authority)}</>}</p>
+ {producer?<p>Productor o razón social: {value(p?.name)}<br/>DNI/CE: {value(p?.document?.length===11?'':p?.document)} · RUC: {value(p?.details?.ruc||(p?.document?.length===11?p.document:''))}<br/>Domicilio: {value(p?.details?.address)}<br/>Teléfono: {value(p?.details?.phone)} · Correo: {value(p?.details?.email)}<br/>Predio y código: {value(p?.predio)} · Campaña: {value(d.campaign)}<br/>Ubicación del predio: {value(p?.details?.location)}<br/>Lugar de entrega: {value(d.place)} · Contrato vinculado N.º: {value(d.contract)}</p>:<p>{op.kind==='purchase'?'Almacén de ingreso':'Almacén de origen'}: {warehouse(op.warehouse_id)}
+  {op.kind==='transfer'&&<><br/>Almacén de destino: {warehouse(op.destination_id)}</>}
+  {op.kind==='own_consumption'&&<><br/>Fundo o destino del uso: {value(d.destination)}</>}
+  {op.kind==='purchase'&&<><br/>Proveedor y comprobante: {value(d.destination)}</>}
+  <br/>{internal.giver}: {value(op.kind==='purchase'?d.receiver:d.responsible)}{op.kind==='purchase'&&<> · DNI/CE: {value(d.receiver_document)}</>}
+  <br/>{internal.taker}: {value(op.kind==='purchase'?d.responsible:d.receiver)}{op.kind!=='purchase'&&<> · DNI/CE: {value(d.receiver_document)}</>}
+  <br/>Guía / referencia: {value(d.source)}{d.campaign&&<> · Campaña: {d.campaign}</>}</p>}
+ {producer&&<><p>Ubicación de origen: {warehouse(op.warehouse_id)}</p>
+ <p>Responsable de la entrega / registro: {value(d.responsible)}</p></>}
  <h2>2. Insumos entregados y valorización</h2>
  <table><thead><tr><th>Descripción / presentación</th><th>Cantidad</th><th>Unidad</th><th>Precio unitario ({op.currency})</th><th>Total ({op.currency})</th></tr></thead><tbody>{items.map(l=><tr key={l.product_id}><td>{l.product_name}<small>{l.presentation}</small></td><td>{fmt(l.quantity)}</td><td>{packageLabel(l.presentation,l.unit)}</td><td>{money(l.price,op.currency)}</td><td>{money(Math.round((l.quantity*l.price+Number.EPSILON)*100)/100,op.currency)}</td></tr>)}</tbody></table>
  <p className="acta-total">PRECIO TOTAL DE LA ENTREGA: {money(op.total??0,op.currency)}</p>
@@ -36,6 +45,7 @@ export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses
  <p>Esta acta no pacta intereses, penalidades ni gastos adicionales. Cualquier modificación del plazo o acuerdo adicional deberá constar por escrito, firmado por ambas partes y sujeto a los límites legales aplicables.</p></>}
  {!producer&&<p>Movimiento interno. Este documento no genera una obligación de pago de un productor.</p>}
  <p>Leída el acta y completados sus campos, las partes aceptan lo consignado y firman dos ejemplares de igual contenido. Toda corrección debe quedar salvada con las iniciales de ambas partes.</p>
- <div className="signatures"><div><b>Por FRUGLOBE S.A.C.</b><p>Firma: {blank}<br/>Nombre: {value(d.representative_name||d.responsible)}<br/>DNI/CE: {value(d.representative_document)}</p></div><div><b>{producer?'Productor o representante acreditado':'Responsable que recibe'}</b><p>Firma: {blank}<br/>Nombre: {value(d.receiver||p?.name)}<br/>DNI/CE: {value(d.receiver_document||p?.document)}</p></div></div>
+ {producer?<div className="signatures"><div><b>Por FRUGLOBE S.A.C.</b><p>Firma: {blank}<br/>Nombre: {value(d.representative_name||d.responsible)}<br/>DNI/CE: {value(d.representative_document)}</p></div><div><b>Productor o representante acreditado</b><p>Firma: {blank}<br/>Nombre: {value(d.receiver||p?.name)}<br/>DNI/CE: {value(d.receiver_document||p?.document)}</p></div></div>
+ :<div className="signatures"><div><b>{internal.giver}</b><p>Firma: {blank}<br/>Nombre: {value(op.kind==='purchase'?d.receiver:d.responsible)}<br/>DNI/CE: {op.kind==='purchase'?value(d.receiver_document):blank}</p></div><div><b>{internal.taker}</b><p>Firma: {blank}<br/>Nombre: {value(op.kind==='purchase'?d.responsible:d.receiver)}<br/>DNI/CE: {op.kind==='purchase'?blank:value(d.receiver_document)}</p></div></div>}
  </td></tr></tbody></table></article>;
 }
