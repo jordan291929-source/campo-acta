@@ -98,3 +98,8 @@ Campo registra salidas en envases completos (bolsa, envase o cilindro); la app m
 
 ## Membrete
 Todos los formatos impresos (actas, traslados, consumos e ingresos) llevan el membrete de la hoja FRUGLOBE: logo, razón social, RUC, teléfono y domicilio, repetido en cada página. El logo está en `src/assets`; el RUC, teléfono y domicilio se toman de Datos de empresa. Aplicar `202610260007_letterhead_phone.sql` después de 006 para guardar el teléfono del membrete.
+
+## Formulario por pasos y eliminación
+El formulario de salidas está ordenado en cinco pasos: qué se registra, a quién y cuándo, insumos (tarjetas con botones − / +, disponible en envases y aviso si no alcanza el stock), quién recibe y descuento, y revisión. Antes de emitir se muestra en lenguaje simple lo que falta completar. Moneda, tipo de cambio, campaña, guía y datos de FRUGLOBE están en "Más datos".
+
+Aplicar `202610260008_delete_operations.sql` después de 007. La cuenta administradora puede eliminar borradores y documentos anulados; un documento emitido se anula primero. Eliminar no cambia el stock y la auditoría conserva una copia del documento.

@@ -109,9 +109,23 @@ try{
  assert.deepEqual([Number(draftLine.quantity),Number(draftLine.price),draftLine.unit],[2,30.212,'UN'],'Borrador conserva importe');
  assert.equal((await db.query('select details from public.field_operations where id=$1',[draft])).rows[0].details.reviewed,undefined,'Borrador vuelve a revisión');
  assert.equal((await db.query('select unit from public.field_lines where operation_id=$1',[issued])).rows[0].unit,'KG','Acta emitida sin cambios');
+ for(const f of ['202610260007_letterhead_phone.sql','202610260008_delete_operations.sql']){const sql=await readFile(new URL(`../supabase/migrations/${f}`,import.meta.url),'utf8');await db.exec(sql);await db.exec(sql);}
+ await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${uid}',false)`);
+ const exists=async op=>(await db.query('select 1 from public.field_operations where id=$1',[op])).rows.length===1;
+ const beforeDelete=await balance();
+ await assert.rejects(rpc('field_delete_operation',[purchase.id,'Documento emitido']),/Anula el documento/);
+ await assert.rejects(rpc('field_delete_operation',[delivery.id,'']),/motivo/);
+ await rpc('field_delete_operation',[delivery.id,'Acta anulada de prueba']);assert.equal(await exists(delivery.id),false);
+ assert.equal(await balance(),beforeDelete,'Eliminar una anulada no cambia el stock');
+ const deletable=await save('delivery',1);await rpc('field_delete_operation',[deletable.id,'Borrador de prueba']);assert.equal(await exists(deletable.id),false);
+ assert.equal((await db.query("select count(*)::int n from public.field_audit where action='delete'")).rows[0].n,2,'Auditoría conserva copia');
+ const restricted=await save('delivery',1);
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid2}',false)`);
+ await assert.rejects(rpc('field_delete_operation',[restricted.id,'Sin permiso de administración']),/administradora/);
  await db.exec('reset role;set role anon');await assert.rejects(db.query('select * from public.producers'),/permission denied/);
  console.log('OK: registro automático, acceso compartido, histórica sin descuento, salida atómica/idempotente, rechazo de insuficiencia y fecha, traslado, consumo, reversos, edición concurrente, firmas, snapshot y permisos.');
  console.log('OK: Campo opera salidas y productores; bloqueo real de productos/precios, carga y saldos iniciales; administrador conserva acceso; restricción previa al alta y persistente por usuario.');
  console.log('OK: datos comunes compartidos; Campo los consulta y administración los configura.');
+ console.log('OK: administración elimina borradores y anuladas sin alterar stock; emitidas requieren anulación; Campo no elimina.');
  console.log('OK: 006 convierte L/KG a envases sin duplicar movimientos; precios por envase, borradores a revisión y actas emitidas intactas.');
 }finally{await db.close();}
