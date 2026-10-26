@@ -87,6 +87,11 @@ try{
  await db.exec(`select set_config('request.jwt.claim.sub','${uid2}',false)`);assert.equal((await rpc('field_company_defaults',[])).account,'Cuenta de prueba');
  await assert.rejects(rpc('field_save_company_defaults',[{company_address:'Cambio no permitido'}]),/no puede editar datos de empresa/);
  await assert.rejects(db.exec("update public.field_company_settings set details='{}'"),/permission denied/);
+ await db.exec('reset role');const engineersSql=await readFile(new URL('../supabase/migrations/202610260005_engineers_settings.sql',import.meta.url),'utf8');await db.exec(engineersSql);await db.exec(engineersSql);
+ await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${uid}',false)`);
+ await rpc('field_save_company_defaults',[{company_ruc:'00000000000',company_address:'Dirección de prueba',engineers:'Ingeniero Uno\nIngeniero Dos',bank:'Banco de prueba',account:'Cuenta de prueba',payment_channel:'constancias@example.com'}]);
+ assert.equal((await rpc('field_company_defaults',[])).engineers,'Ingeniero Uno\nIngeniero Dos');
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid2}',false)`);await assert.rejects(rpc('field_save_company_defaults',[{company_ruc:'00000000000',company_address:'Cambio no permitido',engineers:'Otro nombre'}]),/no puede editar datos de empresa/);
  await db.exec('reset role;set role anon');await assert.rejects(db.query('select * from public.producers'),/permission denied/);
  console.log('OK: registro automático, acceso compartido, histórica sin descuento, salida atómica/idempotente, rechazo de insuficiencia y fecha, traslado, consumo, reversos, edición concurrente, firmas, snapshot y permisos.');
  console.log('OK: Campo opera salidas y productores; bloqueo real de productos/precios, carga y saldos iniciales; administrador conserva acceso; restricción previa al alta y persistente por usuario.');
