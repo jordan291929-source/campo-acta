@@ -1,12 +1,22 @@
 # Campo Acta
 Control interno de campo de FRUGLOBE: stock ProHass, productores y actas de salida. React + TypeScript + Vite + Supabase; Vercel publica desde GitHub.
 
-## Activar esta actualización
-Con la instalación inicial existente, ejecutar **todo** `supabase/migrations/202610260002_full_flow.sql` en SQL Editor de Supabase. Incluye `reset role;`, funciona sobre la migración inicial y puede volver a ejecutarse. No borra registros ni carga existencias ficticias. No repetir el SQL inicial si ya existe.
+## Instalación y migraciones
+Las migraciones se ejecutan **a mano, en orden**, en el SQL Editor de Supabase (no hay CLI ni despliegue automático de la base). Cada una indica después de cuál va; todas desde la 002 se pueden volver a ejecutar. Nunca modificar una migración ya aplicada: los cambios van en una nueva con el siguiente número.
 
-En Authentication habilitar **Allow new users to sign up** si estaba desactivado. La app ofrece Crear cuenta; Supabase puede solicitar confirmación por correo según su configuración. Configurar Site URL con el dominio real de Vercel y autorizar ese dominio como URL de redirección en Authentication. Si se decide trabajar sin confirmación de correo, esa opción se cambia en Supabase; no requiere cambiar código.
+| Migración | Contenido |
+|---|---|
+| 001 initial | Tablas base, almacenes, stock y bucket privado de actas firmadas |
+| 002 full_flow | Productores, documentos, líneas, auditoría y funciones transaccionales |
+| 003 catalog_permissions | Restricción de catálogo por cuenta (reemplazada por los roles de la 009) |
+| 004 company_defaults | Datos de empresa compartidos (RUC, domicilio, representante, banco) |
+| 005 engineers_settings | Listado de ingenieros de Campo |
+| 006 package_units | Stock y precios por envase (UN) |
+| 007 letterhead_phone | Teléfono del membrete |
+| 008 delete_operations | Eliminación de borradores y anuladas por administración |
+| 009 account_approval | Cuentas nuevas pendientes de aprobación y rol de administración |
 
-Las cuentas existentes y nuevas reciben perfil automáticamente. Las cuentas comparten las operaciones de Campo. Se puede restringir por cuenta la carga inicial y la edición de productos/precios mediante la migración 003. No se necesitan roles operativos para las salidas. Las tablas siguen requiriendo sesión.
+En Authentication, configurar Site URL con el dominio real de Vercel y autorizarlo como URL de redirección. Crear cuenta está disponible en la app, pero desde la 009 toda cuenta nueva queda **pendiente** hasta que administración la apruebe en la pestaña Usuarios.
 
 ## Flujo disponible
 - **Productores:** crear y editar identidad, predio, dirección y datos de contacto.
@@ -41,9 +51,9 @@ No sumar unidades diferentes. La unidad/contenido de un producto con saldos no s
 - Una nueva salida anterior a la fecha de corte se rechaza: usar histórica cuando ya esté descontada.
 
 ## Acceso y consistencia
-RLS habilitado, sin lectura anónima. Todas las cuentas comparten acceso funcional. Escritura de documentos y libro solo mediante funciones transaccionales; la app no puede editar directamente saldos calculados ni documentos emitidos. Las funciones comprueban sesión. El control compartido de operaciones evita consumos concurrentes por encima del saldo. Guardar borradores usa versión para detectar edición simultánea. Confirmar y anular repetidamente no duplica movimientos.
+RLS habilitado, sin lectura anónima. Solo las cuentas aprobadas (perfil activo) leen datos o ejecutan funciones; las pendientes no ven nada. Roles: **Campo** registra salidas y productores; **Administración** además edita productos y precios, carga inicial, datos de empresa y usuarios, y elimina documentos. Escritura de documentos y libro solo mediante funciones transaccionales; la app no puede editar directamente saldos calculados ni documentos emitidos. Las funciones comprueban que la cuenta esté aprobada. El control compartido de operaciones evita consumos concurrentes por encima del saldo. Guardar borradores usa versión para detectar edición simultánea. Confirmar y anular repetidamente no duplica movimientos.
 
-Los archivos firmados están en un bucket privado con lectura para usuarios autenticados. No se elimina ni reemplaza el original desde la aplicación.
+Los archivos firmados están en un bucket privado con lectura para cuentas aprobadas. No se elimina ni reemplaza el original desde la aplicación.
 
 ## Configuración Vercel
 Proyecto actual: `fruglobe`; repositorio `jordan291929-source/campo-acta`.
@@ -78,7 +88,9 @@ Con esta base, las salidas y traslados anteriores deben registrarse como movimie
 
 Productos también permite cargar un archivo privado de precios sin IGV +15% y aplicarlo al catálogo según la unidad de control. No modifica las actas emitidas.
 
-## Cuenta de Campo con catálogo de consulta
+## Cuenta de Campo con catálogo de consulta (histórico)
+Desde la migración 009 los permisos se gestionan con roles en la pestaña Usuarios; esta sección describe el mecanismo anterior.
+
 Aplicar la migración 202610260003_catalog_permissions.sql después de 002. Registrar el correo de la cuenta restringida en field_account_restrictions con can_manage_catalog=false desde SQL Editor. La regla se vincula al usuario existente o al momento de crear su cuenta. Permite operar productores, salidas, firmas, movimientos y NISIRA; restringe importación inicial, saldos iniciales y creación/edición de productos y precios. Las restricciones se validan en el servidor, y las implementaciones internas no están disponibles para llamadas de clientes. La cuenta principal conserva permisos de catálogo.
 
 La interfaz consulta su permiso al actualizar o iniciar sesión. Si aún no se instaló esta migración, mantiene cerradas temporalmente las funciones de catálogo. Nunca volver a aplicar una migración antigua sobre una más reciente.
