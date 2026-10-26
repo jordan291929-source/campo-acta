@@ -92,6 +92,28 @@ try{
  await rpc('field_save_company_defaults',[{company_ruc:'00000000000',company_address:'Dirección de prueba',engineers:'Ingeniero Uno\nIngeniero Dos',bank:'Banco de prueba',account:'Cuenta de prueba',payment_channel:'constancias@example.com'}]);
  assert.equal((await rpc('field_company_defaults',[])).engineers,'Ingeniero Uno\nIngeniero Dos');
  await db.exec(`select set_config('request.jwt.claim.sub','${uid2}',false)`);await assert.rejects(rpc('field_save_company_defaults',[{company_ruc:'00000000000',company_address:'Cambio no permitido',engineers:'Otro nombre'}]),/no puede editar datos de empresa/);
+ await db.exec('reset role');const approvalSql=await readFile(new URL('../supabase/migrations/202610260009_account_approval.sql',import.meta.url),'utf8');await db.exec(approvalSql);await db.exec(approvalSql);
+ const uid3='00000000-0000-0000-0000-0000000000a3';await db.query(`insert into auth.users(id,email) values($1,'desconocido@example.test')`,[uid3]);
+ await db.exec(`set role authenticated;select set_config('request.jwt.claim.sub','${uid3}',false)`);
+ assert.deepEqual(await rpc('field_my_access',[]),{member:false,admin:false},'Cuenta nueva pendiente');
+ assert.equal((await db.query('select * from public.producers')).rows.length,0,'Pendiente no lee productores');
+ assert.equal((await db.query('select * from public.products')).rows.length,0,'Pendiente no lee productos');
+ await assert.rejects(rpc('field_save_producer',[{name:'Intruso',document:'',predio:'',details:{}}]),/no está aprobada/);
+ await assert.rejects(rpc('field_company_defaults',[]),/no está aprobada/);
+ await assert.rejects(rpc('field_list_users',[]),/Solo administración/);
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid2}',false)`);
+ assert.deepEqual(await rpc('field_my_access',[]),{member:true,admin:false},'Cuenta restringida sigue en Campo');
+ await assert.rejects(rpc('field_set_user_access',[uid3,true,false]),/Solo administración/);
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid}',false)`);
+ assert.deepEqual(await rpc('field_my_access',[]),{member:true,admin:true},'Cuenta principal conserva administración');
+ const listed=(await db.query('select * from public.field_list_users()')).rows;assert.equal(listed.find(u=>u.id===uid3).active,false,'Administración ve la cuenta pendiente');assert.equal(listed[0].id,uid3,'Pendientes primero');
+ await assert.rejects(rpc('field_set_user_access',[uid,false,false]),/propia cuenta/);
+ await rpc('field_set_user_access',[uid3,true,false]);
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid3}',false)`);
+ assert.deepEqual(await rpc('field_my_access',[]),{member:true,admin:false},'Aprobada sin administración');
+ assert.ok((await db.query('select * from public.products')).rows.length>0,'Aprobada lee productos');
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid}',false)`);await rpc('field_set_user_access',[uid3,false,false]);
+ await db.exec(`select set_config('request.jwt.claim.sub','${uid3}',false)`);assert.equal((await db.query('select * from public.products')).rows.length,0,'Desactivada pierde acceso');
  await db.exec('reset role');
  // Datos guardados antes de 006: envases del Excel etiquetados como KG y saldos manuales en L.
  const pk=id(),pl=id(),issued=id(),draft=id();
@@ -127,5 +149,6 @@ try{
  console.log('OK: Campo opera salidas y productores; bloqueo real de productos/precios, carga y saldos iniciales; administrador conserva acceso; restricción previa al alta y persistente por usuario.');
  console.log('OK: datos comunes compartidos; Campo los consulta y administración los configura.');
  console.log('OK: administración elimina borradores y anuladas sin alterar stock; emitidas requieren anulación; Campo no elimina.');
+ console.log('OK: cuentas nuevas pendientes sin lectura ni escritura; aprobación, desactivación y administración solo por administración.');
  console.log('OK: 006 convierte L/KG a envases sin duplicar movimientos; precios por envase, borradores a revisión y actas emitidas intactas.');
 }finally{await db.close();}

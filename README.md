@@ -103,3 +103,6 @@ Todos los formatos impresos (actas, traslados, consumos e ingresos) llevan el me
 El formulario de salidas está ordenado en cinco pasos: qué se registra, a quién y cuándo, insumos (tarjetas con botones − / +, disponible en envases y aviso si no alcanza el stock), quién recibe y descuento, y revisión. Antes de emitir se muestra en lenguaje simple lo que falta completar. Moneda, tipo de cambio, campaña, guía y datos de FRUGLOBE están en "Más datos".
 
 Aplicar `202610260008_delete_operations.sql` después de 007. La cuenta administradora puede eliminar borradores y documentos anulados; un documento emitido se anula primero. Eliminar no cambia el stock y la auditoría conserva una copia del documento.
+
+## Aprobación de cuentas
+Aplicar `202610260009_account_approval.sql` después de 008. Las cuentas nuevas quedan pendientes: no leen ni modifican información hasta que administración las aprueba en la pestaña Usuarios. Las cuentas existentes conservan su acceso; las que no estaban restringidas quedan como Administración. Administración edita productos, precios, carga inicial, datos de empresa y usuarios, y puede eliminar documentos; Campo registra salidas y productores. Revisar la lista de Usuarios después de aplicar la migración y quitar el acceso a cualquier cuenta desconocida.
