@@ -1,11 +1,14 @@
 import {normalized,presentationContent,type Details} from './model';
-export type ImportStock={name:string;presentation:string;warehouse:string;quantity:number|null;unit:string;package_size:number;notes:string};
-export type HistoryGroup={key:string;date:string;warehouse:string;description:string;responsible:string;items:{name:string;quantity:number;sourceUnit:string}[]};
+export type ImportStock={name:string;presentation:string;warehouse:string;quantity:number|null;unit:string;package_size:number;notes:string;cost_per_package?:number;sale_per_package?:number};
+export type HistoryGroup={key:string;date:string;warehouse:string;description:string;responsible:string;stockAlreadyDiscounted?:boolean;items:{name:string;quantity:number;sourceUnit:string}[]};
 const text=(v:unknown):string=>{if(v==null)return '';if(v instanceof Date)return v.toISOString().slice(0,10);if(typeof v==='object'){const x=v as {result?:unknown;text?:string;richText?:{text:string}[];error?:string};if(x.error)return '';if('result'in x)return text(x.result);if(x.richText)return x.richText.map(v=>v.text).join('');return x.text??'';}return String(v).trim();};
 const quantity=(v:unknown)=>{const n=Number(text(v));return text(v)!==''&&Number.isFinite(n)?n:null;};
 export async function readExcel(file:File){
  const module=await import('exceljs');const Excel=(module as unknown as {default?:typeof import('exceljs')}).default??module;
  const workbook=new Excel.Workbook();await workbook.xlsx.load(await file.arrayBuffer());
+ const instruction=workbook.getWorksheet('Instrucciones');
+ const stockBasis=text(instruction?.getCell('A2').value)==='TIPO_BASE'&&text(instruction?.getCell('B2').value)==='COMPRAS_ORIGINALES'?'purchased':'remaining';
+ const stockDate=stockBasis==='purchased'?text(instruction?.getCell('B18').value):'';
  const stock:ImportStock[]=[];const groups=new Map<string,HistoryGroup>();const producers=new Map<string,{name:string;document:string;predio:string;details:Details}>();
  workbook.eachSheet(sheet=>{
   if(normalized(sheet.name)==='PRODUCTOS')sheet.eachRow((row,i)=>{
@@ -13,7 +16,8 @@ export async function readExcel(file:File){
    const name=text(row.getCell(2).value),presentation=text(row.getCell(3).value),wh=normalized(text(row.getCell(5).value));
    if(!name||(!wh.includes('SUR')&&!wh.includes('NORTE')))return;
    const size=presentationContent(presentation)?.size||1;
-   stock.push({name,presentation,warehouse:wh.includes('SUR')?'SUR':'NORTE',quantity:quantity(row.getCell(8).value),unit:'UN',package_size:size,notes:`${file.name} · Productos fila ${i} · Código interno ${text(row.getCell(1).value)} · Cantidades en envases; unidad declarada en el Excel ${text(row.getCell(6).value)}`});
+   const prices=normalized(text(sheet.getCell('N2').value))==='COSTO UNITARIO SIN IGV USD'&&normalized(text(sheet.getCell('P2').value))==='PRECIO PRODUCTOR SIN IGV USD';
+   stock.push({name,presentation,warehouse:wh.includes('SUR')?'SUR':'NORTE',quantity:quantity(row.getCell(8).value),unit:'UN',package_size:size,notes:`${file.name} · Productos fila ${i} · Código interno ${text(row.getCell(1).value)} · Cantidades en envases; unidad declarada en el Excel ${text(row.getCell(6).value)}`,...(prices?{cost_per_package:quantity(row.getCell(14).value)??undefined,sale_per_package:quantity(row.getCell(16).value)??undefined}:{})});
   });
   if(normalized(sheet.name)==='REGISTRO DE MOVIMIENTOS')sheet.eachRow((row,i)=>{
    const q=quantity(row.getCell(8).value),desc=text(row.getCell(9).value),date=text(row.getCell(1).value),wh=normalized(text(row.getCell(5).value));
@@ -34,5 +38,5 @@ export async function readExcel(file:File){
   });
  });
  const allProducers=[...producers.values()];
- return {stock,history:[...groups.values()],producers:allProducers.filter(p=>p.document||!allProducers.some(r=>r.document&&normalized(r.name)===normalized(p.name)))};
+ return {stock,stockBasis,stockDate,history:[...groups.values()],producers:allProducers.filter(p=>p.document||!allProducers.some(r=>r.document&&normalized(r.name)===normalized(p.name)))};
 }

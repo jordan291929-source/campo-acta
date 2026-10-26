@@ -70,3 +70,10 @@ npm test
 Las pruebas no modifican el proyecto real de Supabase.
 
 Los Excel reales y los datos personales nunca deben agregarse al repositorio público. Configurar respaldos del proyecto Supabase antes de su operación habitual.
+
+## Base desde compras originales
+La plantilla de compras tiene 16 productos, todos en SUR, y marca TIPO_BASE=COMPRAS_ORIGINALES en Instrucciones. El lector distingue esta base del kardex de remanentes. Se importan unidades facturadas (UN), contenido, costo neto y precio de productor sin IGV con incremento de 15%. Los valores financieros permanecen en el archivo local y Supabase; no se publican en este repositorio.
+
+Con esta base, las salidas y traslados anteriores deben registrarse como movimientos que descuentan stock una sola vez. En la preparación de salidas del kardex se elige si deben descontar o si ya estaban descontadas. Regularización documental sin descuento solo corresponde cuando la salida física ya fue registrada. La fecha base documental de la plantilla es la última emisión de factura; se puede revisar antes de confirmar y no se considera fecha probada de recepción física.
+
+Productos también permite cargar un archivo privado de precios sin IGV +15% y aplicarlo al catálogo según la unidad de control. No modifica las actas emitidas.
