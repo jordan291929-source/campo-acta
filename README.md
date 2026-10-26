@@ -90,3 +90,8 @@ El RUC y el domicilio se guardan en Supabase y se completan para usuarios autent
 
 ## Ingeniero responsable y datos de pago
 Aplicar la actualización 005 para guardar el listado de ingenieros en Datos de empresa (un nombre por línea). El responsable de nuevas salidas se selecciona de ese listado; no se usa el correo de la sesión. La impresión incluye el responsable de entrega y conserva por separado el representante de FRUGLOBE configurado. La cuenta bancaria y el canal de constancias se obtienen de la configuración privada, sin incorporar valores personales/bancarios al código público. Los documentos emitidos no se actualizan automáticamente.
+
+## Stock por envase y actas en soles
+Aplicar `202610260006_package_units.sql` después de 005. Corrige los productos que quedaron con unidad L/KG cuando sus cantidades eran envases del Excel (por ejemplo, 40 envases x 5 L se mostraban como 40 L). Los saldos importados con la nota "Cantidades en envases" conservan su número; los saldos y movimientos registrados en L/KG se dividen entre el contenido del envase. Los precios pasan a ser por envase. Los borradores se convierten con el mismo importe y deben revisarse de nuevo; las actas emitidas no se modifican. Se puede volver a ejecutar.
+
+Campo registra salidas en envases completos (bolsa, envase o cilindro); la app muestra el contenido total en L/KG como referencia. Las nuevas salidas se emiten en soles: el precio en USD del catálogo se convierte con un tipo de cambio referencial del día (open.er-api.com, no es el TC oficial SUNAT). El tipo de cambio es editable, queda guardado en cada acta y se imprime debajo del total. Cambiar el tipo de cambio o la moneda recalcula los precios del documento.

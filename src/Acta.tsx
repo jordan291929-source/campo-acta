@@ -1,5 +1,5 @@
 import type {Line,Operation,Warehouse} from './model';
-import {code,fmt,money,unit,kinds,equivalentContent} from './model';
+import {code,fmt,money,kinds,packageLabel} from './model';
 const blank='________________________________';
 export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses:Warehouse[]}){
  const d=op.details,p=op.producer_snapshot,producer=op.kind==='delivery'||op.kind==='historical';
@@ -13,9 +13,11 @@ export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses
  <p>Empresa: FRUGLOBE S.A.C. · RUC: {value(d.company_ruc)}<br/>Domicilio: {value(d.company_address)}<br/>Representante: {value(d.representative_name||d.responsible)} · DNI/CE: {value(d.representative_document)}<br/>Cargo y sustento de facultades: {value(d.authority)}</p>
  {producer?<p>Productor o razón social: {value(p?.name)}<br/>DNI/CE: {value(p?.document?.length===11?'':p?.document)} · RUC: {value(p?.details?.ruc||(p?.document?.length===11?p.document:''))}<br/>Domicilio: {value(p?.details?.address)}<br/>Teléfono: {value(p?.details?.phone)} · Correo: {value(p?.details?.email)}<br/>Predio y código: {value(p?.predio)} · Campaña: {value(d.campaign)}<br/>Ubicación del predio: {value(p?.details?.location)}<br/>Lugar de entrega: {value(d.place)} · Contrato vinculado N.º: {value(d.contract)}</p>:<p>Destino / fundo / proveedor: {value(d.destination)}<br/>Responsable que recibe: {value(d.receiver)}<br/>Campaña: {value(d.campaign)}</p>}
  <p>Ubicación de {op.kind==='purchase'?'ingreso':'origen'}: {warehouses.find(w=>w.id===op.warehouse_id)?.name}{op.kind==='transfer'&&<><br/>Ubicación de destino: {warehouses.find(w=>w.id===op.destination_id)?.name}</>}</p>
- <p>Responsable de la entrega / registro: {value(d.responsible)}</p>\n <h2>2. Insumos entregados y valorización</h2>
- <table><thead><tr><th>Descripción / presentación</th><th>Cantidad</th><th>Unidad</th><th>Precio por unidad ({op.currency})</th><th>Total ({op.currency})</th></tr></thead><tbody>{items.map(l=><tr key={l.product_id}><td>{l.product_name}<small>{l.presentation}</small></td><td>{fmt(l.quantity)}<small>{equivalentContent(l.quantity,l.unit||'',l.presentation||'')}</small></td><td>{unit(l.unit||'')}</td><td>{money(l.price,op.currency)}</td><td>{money(Math.round((l.quantity*l.price+Number.EPSILON)*100)/100,op.currency)}</td></tr>)}</tbody></table>
+ <p>Responsable de la entrega / registro: {value(d.responsible)}</p>
+ <h2>2. Insumos entregados y valorización</h2>
+ <table><thead><tr><th>Descripción / presentación</th><th>Cantidad</th><th>Unidad</th><th>Precio unitario ({op.currency})</th><th>Total ({op.currency})</th></tr></thead><tbody>{items.map(l=><tr key={l.product_id}><td>{l.product_name}<small>{l.presentation}</small></td><td>{fmt(l.quantity)}</td><td>{packageLabel(l.presentation,l.unit)}</td><td>{money(l.price,op.currency)}</td><td>{money(Math.round((l.quantity*l.price+Number.EPSILON)*100)/100,op.currency)}</td></tr>)}</tbody></table>
  <p className="acta-total">PRECIO TOTAL DE LA ENTREGA: {money(op.total??0,op.currency)}</p>
+ {op.currency==='PEN'&&d.exchange_rate&&<p>Tipo de cambio referencial: S/ {d.exchange_rate} por USD{d.exchange_rate_date?`, consultado el ${d.exchange_rate_date}`:''}. Precios en dólares convertidos a soles.</p>}
  <p>Comprobante: {value(d.receipt)} · Referencia de origen: {value(d.source)}</p>
  <h2>3. Conformidad de la recepción física</h2>
  <p>{producer?'El productor declara haber verificado la descripción, las cantidades y el estado aparente de los insumos, según el detalle de la sección 2 y sus anexos.':'El responsable receptor deja constancia de la recepción de los insumos detallados.'} La recepción se realiza: □ Conforme □ Con observaciones consignadas abajo. Los insumos rechazados o no entregados deberán excluirse del total antes de firmar. La conformidad física no impide comunicar defectos no apreciables al recibir ni ejercer los derechos que correspondan.</p>
