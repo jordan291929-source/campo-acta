@@ -126,3 +126,8 @@ En traslados e ingresos de compra el responsable es personal de almacén: se esc
 El stock permite filtrar por familia y almacén, con valorización de las existencias al costo de catálogo sin IGV (no al precio al productor). Muestra USD y PEN según el TC referencial indicado. Saldos desconocidos, costos pendientes y conversiones sin TC se excluyen del total y se identifican como parciales. La familia se asigna desde Productos; los productos previos empiezan sin clasificar.
 
 Eliminar un producto requiere Administración, motivo y confirmación desde Productos. Se bloquea si tiene actas (incluidos borradores), movimientos o saldos distintos de cero/desconocidos. Solo retira saldos iniciales en cero de productos sin uso; conserva una copia en el historial.
+
+## Kardex interactivo
+La pestaña Kardex / Movimientos muestra saldos iniciales, entradas, salidas, traslados y reversos. Filtra por fecha física, producto, familia, almacén, tipo, dirección, cuenta que registró y responsable de entrega. Los saldos se calculan con todo el historial de cada producto/almacén antes de filtrar; los desconocidos no se convierten en cero. Los registros anteriores al corte requieren conciliación. El saldo inicial no se suma como una entrada. CSV exporta todos los registros filtrados, con protección frente a fórmulas de hoja de cálculo.
+
+Cada detalle identifica fecha física, fecha/hora de registro (Lima), origen, destino, usuario real, responsable declarado y documento. Los reversos se enlazan al acta original por auditoría. El historial conserva acciones sin impacto en stock, incluidas regularizaciones y eliminaciones. La vista usa permisos existentes y no requiere migración SQL.
