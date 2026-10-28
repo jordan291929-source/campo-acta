@@ -1,10 +1,10 @@
-import type {Line,Operation,Warehouse} from './model';
-import {solesBankDetails} from './company';
+import type {Details,Line,Operation,Warehouse} from './model';
+import {actaBankDetails} from './company';
 import {code,fmt,money,kinds,packageLabel} from './model';
 import logo from './assets/fruglobe-logo.jpeg';
 const blank='________________________________';
-export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses:Warehouse[]}){
- const p=op.producer_snapshot,producer=op.kind==='delivery'||op.kind==='historical',d=producer?{...solesBankDetails(op.details),payment_method:'Transferencia'}:op.details;
+export function Acta({op,items,warehouses,companyDefaults={}}:{op:Operation;items:Line[];warehouses:Warehouse[];companyDefaults?:Details}){
+ const p=op.producer_snapshot,producer=op.kind==='delivery'||op.kind==='historical',d=producer?{...actaBankDetails(op.details,companyDefaults,op.status==='draft'),payment_method:'Transferencia'}:op.details;
  const value=(s?:string)=>s||blank;
  const warehouse=(id?:string|null)=>value(warehouses.find(w=>w.id===id)?.name);
  // Movimientos internos: quién entrega y quién recibe según el tipo.

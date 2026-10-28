@@ -3,7 +3,7 @@ import {createPortal} from 'react-dom';
 import {db,lines,rpc} from './api';
 import {Acta} from './Acta';
 import {ActaFields} from './ActaFields';
-import {actaDetails,engineerActaDetails,DEFAULT_COMPANY,engineerList,findEngineer,engineerDocument} from './company';
+import {actaDetails,actaBankDetails,engineerActaDetails,DEFAULT_COMPANY,engineerList,findEngineer,engineerDocument} from './company';
 import type {HistoryGroup} from './excel';
 import type {Details,Line,Operation,Producer,Product,Stock,Warehouse} from './model';
 import {code,kinds,money,normalized,states,today,packageContent,packageCount,packageLabel} from './model';
@@ -39,7 +39,7 @@ export function Operations({openRequest,rows,products,producers,warehouses,stock
  const total=priced.reduce((s,l)=>s+Math.round((l.quantity*l.price+Number.EPSILON)*100)/100,0);
  const selectedProducer=readonly?op.producer_snapshot:producers.find(p=>p.id===op.producer_id);
  const engineers=engineerList(companyDefaults);const selectedEngineer=findEngineer(op.details.responsible??'',engineers);
- const resolvedDetails=readonly?op.details:{...(isProducer?engineerActaDetails:actaDetails)({...op.details,responsible:selectedEngineer||op.details.responsible||''},companyDefaults,selectedProducer,total,op.currency),responsible:selectedEngineer||op.details.responsible||''};
+ const resolvedDetails=readonly?(isProducer?actaBankDetails(op.details,companyDefaults):op.details):{...(isProducer?engineerActaDetails:actaDetails)({...op.details,responsible:selectedEngineer||op.details.responsible||''},companyDefaults,selectedProducer,total,op.currency),responsible:selectedEngineer||op.details.responsible||''};
  function setRate(value:string,date:string,source:string){setOp(o=>({...o,details:{...o.details,exchange_rate:value,exchange_rate_date:date,exchange_rate_source:source,reviewed:''}}));}
  // Documento en soles sin tipo de cambio: propone el de hoy.
  useEffect(()=>{if(readonly||op.currency!=='PEN'||op.details.exchange_rate)return;let live=true;fetchUsdPen().then(x=>{if(live)setRate(String(x.rate),x.date,x.source);}).catch(()=>{});return()=>{live=false;};},[op.id,op.currency,readonly]);
@@ -155,6 +155,6 @@ export function Operations({openRequest,rows,products,producers,warehouses,stock
  {canManage&&op.number&&['draft','cancelled'].includes(op.status)&&<details className="danger-zone"><summary>Eliminar documento (administración)</summary><p>Se borra de la lista de forma definitiva. El stock no cambia y la auditoría conserva una copia.</p><button className="danger" onClick={()=>run(()=>remove(op))}>Eliminar {code(op.number)}</button></details>}
  </section>
  <section className="card" id="documentos"><h3>Documentos registrados</h3><div className="filters"><label>Buscar<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Número, productor o referencia"/></label><label>Estado<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="">Todos</option>{Object.entries(states).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label></div><div className="table-wrap"><table><thead><tr><th>N.º / fecha</th><th>Tipo / productor</th><th>Estado</th><th>Total</th><th>NISIRA</th><th></th></tr></thead><tbody>{rows.filter(o=>(!filter||o.status===filter)&&`${code(o.number)} ${o.producer_snapshot?.name??producers.find(p=>p.id===o.producer_id)?.name??''} ${o.nisira_reference??''}`.toLowerCase().includes(query.toLowerCase())).map(o=><tr key={o.id}><td>{code(o.number)}<small>{o.occurred_on}</small></td><td>{kinds[o.kind]}<small>{o.producer_snapshot?.name??producers.find(p=>p.id===o.producer_id)?.name}</small></td><td><span className="pill">{states[o.status]}</span></td><td>{money(o.total??0,o.currency)}</td><td>{o.nisira_reference||'Pendiente'}</td><td><div className="row-actions"><button className="quiet" onClick={()=>run(async()=>{await open(o.id);window.scrollTo(0,0);})}>Abrir</button>{canManage&&['draft','cancelled'].includes(o.status)&&<button className="quiet danger-text" onClick={()=>run(()=>remove(o))}>Eliminar</button>}</div></td></tr>)}</tbody></table>{!rows.length&&<p>No hay documentos. Crea una salida nueva o regulariza una entrega antigua.</p>}</div></section></div>
- {preview&&active&&createPortal(<Acta op={printOp} items={enriched} warehouses={warehouses}/>,document.body)}
+ {preview&&active&&createPortal(<Acta op={printOp} items={enriched} warehouses={warehouses} companyDefaults={companyDefaults}/>,document.body)}
  </>;
 }

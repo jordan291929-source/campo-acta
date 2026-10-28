@@ -5,7 +5,7 @@ import ts from 'typescript';
 import assert from 'node:assert/strict';
 const output=resolve('.qa/company');await mkdir(output,{recursive:true});
 for(const name of ['model','company']){const code=(await readFile(`src/${name}.ts`,'utf8')).replaceAll("from './model'","from './model.mjs'");await writeFile(`${output}/${name}.mjs`,ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText);}
-const {actaDetails,engineerActaDetails,dateInput,engineerList,findEngineer,engineerRecords,engineerDocument,solesBankDetails,hasDollarBank}=await import(pathToFileURL(`${output}/company.mjs`).href);
+const {actaDetails,engineerActaDetails,dateInput,engineerList,findEngineer,engineerRecords,engineerDocument,solesBankDetails,hasDollarBank,actaBankDetails}=await import(pathToFileURL(`${output}/company.mjs`).href);
 const DEFAULT_COMPANY={company_address:'Dirección de prueba',company_ruc:'00000000000'};
 const producer={id:'p1',name:'Productor de prueba',document:'00123456',predio:'Predio',details:{}};
 const draft=actaDetails({responsible:'Campo'},DEFAULT_COMPANY,producer,120,'USD');
@@ -44,3 +44,13 @@ for(const bank of ['Cuenta USD','Cuenta en dólares','Cuenta DOLAR','Cuenta US$'
 const transferActa=engineerActaDetails({responsible:'Ingeniero Uno',payment_method:'Efectivo'}, {...registered,...dollarBank},producer,100,'PEN');assert.equal(transferActa.payment_method,'Transferencia');assert.equal(transferActa.account,'');assert.match(transferActa.bank,/Soles/);
 assert.equal(engineerActaDetails({responsible:'Ingeniero Uno'}, {...registered,...penBank},producer,100,'PEN').account,'CUENTA-PEN-PRUEBA');
 console.log('OK: transferencia predeterminada; cuenta USD nunca se rotula como PEN conservando su número; cuenta PEN válida se mantiene.');
+
+const newBank={bank:'Banco de prueba · Cuenta Corriente Soles',account:'CUENTA-PEN-NUEVA',payment_channel:'tesoreria@example.test'};
+const oldBank={bank:'Banco de prueba · Cuenta Corriente Dólares',account:'CUENTA-USD-VIEJA',initial_debt:'Importe original',responsible:'Ingeniero Uno'};
+const oldCopy=JSON.stringify(oldBank);assert.equal(actaBankDetails(oldBank,newBank).account,'CUENTA-PEN-NUEVA');assert.equal(JSON.stringify(oldBank),oldCopy,'No cambia la cuenta ni los importes guardados del documento');
+assert.equal(actaBankDetails({bank:'Banco Soles',account:''},newBank).account,'CUENTA-PEN-NUEVA');
+assert.equal(actaBankDetails(penBank,newBank).account,'CUENTA-PEN-PRUEBA','Una cuenta PEN válida en un documento emitido se conserva');
+assert.equal(actaBankDetails(penBank,newBank,true).account,'CUENTA-PEN-NUEVA','Borrador toma la cuenta de empresa actual');
+assert.equal(actaBankDetails(oldBank,dollarBank).account,'','No recupera una cuenta USD como cuenta PEN');
+assert.equal(engineerActaDetails(oldBank,newBank,producer,100,'PEN').account,'CUENTA-PEN-NUEVA');assert.equal(actaBankDetails({},newBank).payment_channel,'tesoreria@example.test');
+console.log('OK: la cuenta PEN guardada completa actas anteriores pendientes y actualiza borradores, sin alterar importes ni otras cuentas PEN emitidas.');

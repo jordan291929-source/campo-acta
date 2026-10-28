@@ -20,6 +20,13 @@ export function hasDollarBank(details:Details){return /d[óo]lar(?:es)?|dollars?
 export function solesBankDetails(details:Details):Details{
  return hasDollarBank(details)?{...details,bank:(details.bank??'').replace(/d[óo]lar(?:es)?|dollars?|\bUSD\b|US\$/gi,'Soles'),account:''}:{...details};
 }
+// La cuenta del catálogo se usa en borradores y completa cuentas pendientes de actas anteriores.
+export function actaBankDetails(details:Details,defaults:Details,preferCurrent=false):Details{
+ const saved=solesBankDetails(details),current=solesBankDetails(defaults);
+ if(preferCurrent&&('bank'in defaults||'account'in defaults))return {...saved,bank:current.bank??'',account:current.account??'',payment_channel:current.payment_channel??saved.payment_channel??''};
+ if(!hasDollarBank(defaults)&&current.bank?.trim()&&current.account?.trim()&&(hasDollarBank(details)||!saved.account?.trim()))return {...saved,bank:current.bank,account:current.account,payment_channel:saved.payment_channel||current.payment_channel||''};
+ return saved;
+}
 export function actaDetails(details:Details,defaults:Details,producer:Producer|undefined,total:number,currency:string):Details{
  const result={...details};
  for(const [key]of COMPANY_FIELDS)if(!result[key]&&defaults[key])result[key]=defaults[key];
@@ -32,7 +39,7 @@ export function actaDetails(details:Details,defaults:Details,producer:Producer|u
 }
 // El ingeniero firma esta entrega; no hereda el DNI ni el cargo del representante general.
 export function engineerActaDetails(details:Details,defaults:Details,producer:Producer|undefined,total:number,currency:string):Details{
- return {...solesBankDetails(actaDetails(details,defaults,producer,total,currency)),payment_method:'Transferencia',representative_name:details.responsible?.trim()||'',representative_document:details.representative_document??engineerDocument(details.responsible??'',defaults),authority:details.authority??'Ingeniero de Campo'};
+ return {...actaBankDetails(actaDetails(details,defaults,producer,total,currency),defaults,true),payment_method:'Transferencia',representative_name:details.responsible?.trim()||'',representative_document:details.representative_document??engineerDocument(details.responsible??'',defaults),authority:details.authority??'Ingeniero de Campo'};
 }
 export function dateInput(value=''){
  if(/^\d{4}-\d{2}-\d{2}$/.test(value))return value;

@@ -8,3 +8,7 @@ const pen=render({...op,details:{...op.details,bank:'Banco de prueba · Cuenta C
 const oldUsd=render({...op,currency:'USD'});assert.match(oldUsd,/USD/,'No cambia la moneda ni convierte sin TC los importes ya emitidos');
 const internal=render({...op,kind:'transfer',destination_id:'s'});assert.ok(!internal.includes('Medio de pago:'));
 console.log('OK: misma ubicación y lugar, transferencia fija, cuenta PEN conservada, cuenta USD retirada y documentos guardados intactos.');
+
+const companyDefaults={bank:'Banco de prueba · Cuenta Corriente Soles',account:'CUENTA-PEN-NUEVA'};
+const updatedHtml=renderToStaticMarkup(createElement(Acta,{op,items:[],warehouses:[],companyDefaults}));assert.ok(updatedHtml.includes('CUENTA-PEN-NUEVA'));assert.ok(!updatedHtml.includes('CUENTA-USD-FICTICIA'));assert.match(updatedHtml,/Medio de pago: Transferencia/);assert.equal(JSON.stringify(op),before);
+console.log('OK: acta emitida con cuenta USD anterior imprime la cuenta PEN actual configurada, sin cambiar el registro original.');
