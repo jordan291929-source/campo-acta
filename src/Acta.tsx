@@ -1,9 +1,10 @@
 import type {Line,Operation,Warehouse} from './model';
+import {solesBankDetails} from './company';
 import {code,fmt,money,kinds,packageLabel} from './model';
 import logo from './assets/fruglobe-logo.jpeg';
 const blank='________________________________';
 export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses:Warehouse[]}){
- const d=op.details,p=op.producer_snapshot,producer=op.kind==='delivery'||op.kind==='historical';
+ const p=op.producer_snapshot,producer=op.kind==='delivery'||op.kind==='historical',d=producer?{...solesBankDetails(op.details),payment_method:'Transferencia'}:op.details;
  const value=(s?:string)=>s||blank;
  const warehouse=(id?:string|null)=>value(warehouses.find(w=>w.id===id)?.name);
  // Movimientos internos: quién entrega y quién recibe según el tipo.
@@ -16,7 +17,7 @@ export function Acta({op,items,warehouses}:{op:Operation;items:Line[];warehouses
  {producer&&<p>Las partes identificadas a continuación dejan constancia de los insumos entregados por FRUGLOBE S.A.C. al productor, de su valor y de las condiciones acordadas para su pago. Completar todos los campos aplicables y anular los espacios no utilizados.</p>}
  <h2>1. {producer?'Identificación de las partes y destino':'Datos del movimiento'}</h2>
  <p>Empresa: FRUGLOBE S.A.C. · RUC: {value(d.company_ruc)}<br/>Domicilio: {value(d.company_address)}{producer&&<><br/>Representante: {value(d.representative_name||d.responsible)} · DNI/CE: {value(d.representative_document)}<br/>Cargo y sustento de facultades: {value(d.authority)}</>}</p>
- {producer?<p>Productor o razón social: {value(p?.name)}<br/>DNI/CE: {value(p?.document?.length===11?'':p?.document)} · RUC: {value(p?.details?.ruc||(p?.document?.length===11?p.document:''))}<br/>Domicilio: {value(p?.details?.address)}<br/>Teléfono: {value(p?.details?.phone)} · Correo: {value(p?.details?.email)}<br/>Predio y código: {value(p?.predio)} · Campaña: {value(d.campaign)}<br/>Ubicación del predio: {value(p?.details?.location)}<br/>Lugar de entrega: {value(d.place)} · Contrato vinculado N.º: {value(d.contract)}</p>:<p>{op.kind==='purchase'?'Almacén de ingreso':'Almacén de origen'}: {warehouse(op.warehouse_id)}
+ {producer?<p>Productor o razón social: {value(p?.name)}<br/>DNI/CE: {value(p?.document?.length===11?'':p?.document)} · RUC: {value(p?.details?.ruc||(p?.document?.length===11?p.document:''))}<br/>Domicilio: {value(p?.details?.address)}<br/>Teléfono: {value(p?.details?.phone)} · Correo: {value(p?.details?.email)}<br/>Predio y código: {value(p?.predio)} · Campaña: {value(d.campaign)}<br/>Ubicación del predio: {value(d.place)}<br/>Lugar de entrega: {value(d.place)} · Contrato vinculado N.º: {value(d.contract)}</p>:<p>{op.kind==='purchase'?'Almacén de ingreso':'Almacén de origen'}: {warehouse(op.warehouse_id)}
   {op.kind==='transfer'&&<><br/>Almacén de destino: {warehouse(op.destination_id)}</>}
   {op.kind==='own_consumption'&&<><br/>Fundo o destino del uso: {value(d.destination)}</>}
   {op.kind==='purchase'&&<><br/>Proveedor y comprobante: {value(d.destination)}</>}

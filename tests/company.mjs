@@ -5,7 +5,7 @@ import ts from 'typescript';
 import assert from 'node:assert/strict';
 const output=resolve('.qa/company');await mkdir(output,{recursive:true});
 for(const name of ['model','company']){const code=(await readFile(`src/${name}.ts`,'utf8')).replaceAll("from './model'","from './model.mjs'");await writeFile(`${output}/${name}.mjs`,ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText);}
-const {actaDetails,engineerActaDetails,dateInput,engineerList,findEngineer,engineerRecords,engineerDocument}=await import(pathToFileURL(`${output}/company.mjs`).href);
+const {actaDetails,engineerActaDetails,dateInput,engineerList,findEngineer,engineerRecords,engineerDocument,solesBankDetails,hasDollarBank}=await import(pathToFileURL(`${output}/company.mjs`).href);
 const DEFAULT_COMPANY={company_address:'Dirección de prueba',company_ruc:'00000000000'};
 const producer={id:'p1',name:'Productor de prueba',document:'00123456',predio:'Predio',details:{}};
 const draft=actaDetails({responsible:'Campo'},DEFAULT_COMPANY,producer,120,'USD');
@@ -36,3 +36,11 @@ assert.equal(engineerActaDetails({responsible:'Ingeniero Dos'},registered,produc
 assert.equal(engineerActaDetails({...autoEngineer,representative_document:'DOCUMENTO-ACTA'},{...registered,engineers:'Ingeniero Uno | OTRO-DOCUMENTO'},producer,120,'PEN').representative_document,'DOCUMENTO-ACTA');
 assert.equal(engineerActaDetails({...autoEngineer,representative_document:''},registered,producer,120,'PEN').representative_document,'');
 console.log('OK: listado nombre y documento compatible con nombres anteriores; DNI automático y copia guardada del acta conservada.');
+
+const dollarBank={bank:'Banco de prueba · Cuenta Corriente Dólares',account:'CUENTA-USD-PRUEBA'};
+assert.equal(hasDollarBank(dollarBank),true);assert.equal(solesBankDetails(dollarBank).account,'');assert.match(solesBankDetails(dollarBank).bank,/Soles/);assert.equal(dollarBank.account,'CUENTA-USD-PRUEBA');
+const penBank={bank:'Banco de prueba · Cuenta Corriente Soles',account:'CUENTA-PEN-PRUEBA'};assert.deepEqual(solesBankDetails(penBank),penBank);
+for(const bank of ['Cuenta USD','Cuenta en dólares','Cuenta DOLAR','Cuenta US$'])assert.equal(solesBankDetails({bank,account:'CUENTA-USD-PRUEBA'}).account,'');
+const transferActa=engineerActaDetails({responsible:'Ingeniero Uno',payment_method:'Efectivo'}, {...registered,...dollarBank},producer,100,'PEN');assert.equal(transferActa.payment_method,'Transferencia');assert.equal(transferActa.account,'');assert.match(transferActa.bank,/Soles/);
+assert.equal(engineerActaDetails({responsible:'Ingeniero Uno'}, {...registered,...penBank},producer,100,'PEN').account,'CUENTA-PEN-PRUEBA');
+console.log('OK: transferencia predeterminada; cuenta USD nunca se rotula como PEN conservando su número; cuenta PEN válida se mantiene.');
